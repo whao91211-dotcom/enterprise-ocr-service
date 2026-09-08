@@ -177,7 +177,11 @@ def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> st
                 result = f"未知工具: {name}"
             else:
                 try:
-                    result = str(fn(**args)) if isinstance(args, dict) else str(fn(args))
+                    # StructuredTool: 用 invoke(dict) 调用；也兼容裸函数
+                    if hasattr(fn, "invoke"):
+                        result = str(fn.invoke(args if isinstance(args, dict) else {"arg": args}))
+                    else:
+                        result = str(fn(**args)) if isinstance(args, dict) else str(fn(args))
                 except Exception as e:  # noqa: BLE001
                     result = f"工具执行出错: {e}"
             messages.append({"role": "tool", "content": result, "tool_call_id": tc.get("id", "")})

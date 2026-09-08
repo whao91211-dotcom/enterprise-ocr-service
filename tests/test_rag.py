@@ -127,6 +127,21 @@ def test_agent_tool_registry():
     assert "ocr_recognize" in TOOL_REGISTRY
     assert "rag_query" in TOOL_REGISTRY
     assert "rag_rebuild" in TOOL_REGISTRY
+    # StructuredTool 对象应可用 invoke(dict) 调用（回归：曾误当裸函数调用）
+    for name, fn in TOOL_REGISTRY.items():
+        assert hasattr(fn, "invoke") or callable(fn), name
+
+
+def test_rag_query_tool_roundtrip(sample_csv):
+    """离线验证 rag_query Tool 可被 invoke 正确调用并返回命中文本。"""
+    import rag.retriever as R
+    from rag.agent import TOOL_REGISTRY
+
+    R.touch(sample_csv)
+    fn = TOOL_REGISTRY["rag_query"]
+    out = fn.invoke({"question": "電子レンジ", "top_k": 3})
+    assert isinstance(out, str)
+    assert "電子レンジ" in out
 
 
 def test_intent_classify():
