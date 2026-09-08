@@ -54,12 +54,16 @@
 
 ## 四、当前进度(可演示)
 
-- ✅ OCR 识别 → 8列 CSV(真实 Sample100/Sample27 已识别, 14 行已确认)
+- ✅ OCR 识别 → 8列 CSV(真实 Sample100/Sample150/Sample751 已识别, 库内 37 行)
 - ✅ 人工确认状态机(confirm 接口 + CSV 状态列 + 防覆盖)
-- ✅ RAG 检索(BM25, 索引 14 条, /api/rebuild + /api/stats 可查)
+- ✅ RAG 检索(BM25, 27 条已确认文档, /api/rebuild + /api/stats 可查)
 - ✅ 意图识别路由(demo_intent.py 无 Key 演示: 5 类问题全对)
-- ✅ 智能体中控(3 Tool, ChatDeepSeek function-calling)
-- ⏳ 端到端对话: 待 .env 填 DEEPSEEK_API_KEY 联调
+- ✅ 智能体中控(3 Tool, ChatDeepSeek function-calling, StructuredTool.invoke)
+- ✅ 端到端全链路真实验证:
+  识别 Sample150 → 3 商品正确 → 入库待确认 → confirm 已确认
+  → rebuild(docs 14→27) → "テレビ单价?" 精确回答(14274.00/7台/菱洋電子貿易) + 溯源
+- ✅ 流式 SSE 对话: /api/chat/stream 实时展示 意图→工具调用→结果→回答
+- ✅ 网页 Chatbot: http://127.0.0.1:8100 (多轮记忆正常)
 - ⬜ 拓展类目(如发票/合同模板 + 各自 Tool)
 
 ## 五、运行

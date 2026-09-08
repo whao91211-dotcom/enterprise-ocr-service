@@ -1,4 +1,20 @@
-# 销售单据识别 → 汇总 CSV 服务（v0.4 简化版）
+# 企业文档处理智能体（InternVL3 OCR + DeepSeek 多Tool 框架）
+
+课程项目：基于 InternVL3 微调模型的企业文档处理多智能体框架。
+**两层架构**：OCR 数据服务（本 README 下半部分）+ 智能体 Chatbot（`rag/` 子项目）。
+
+```
+图片 → InternVL3 OCR(8000) → all_sales.csv(待确认) → 人工确认(状态列)
+     → rag_rebuild 索引 → 用户提问 → 意图识别 → rag_query/ocr Tool → DeepSeek 回答
+```
+
+- 智能体网页：`python rag_app.py` → http://127.0.0.1:8100 （流式展示工具调用过程）
+- 需要 `.env` 配 `DEEPSEEK_API_KEY`
+- 详细设计/四人分工/汇报素材：`docs/project-plan.md`；rag 说明：`rag/README.md`
+
+---
+
+# 销售单据识别 → 汇总 CSV 服务（OCR 数据层 v0.4）
 
 上传销售单据图片 → InternVL（OpenAI 兼容端点，本地 9052 转发）识别 → 8 列清洗 →
 **所有图片数据汇总写入单个 `output/all_sales.csv`**（同名覆盖更新）→ 人工可直改 CSV，
