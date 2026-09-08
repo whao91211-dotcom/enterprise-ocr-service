@@ -10,6 +10,13 @@ venv/
 data/
 !data/.gitkeep
 
+# 识别结果落盘
+output/
+!output/.gitkeep
+
+# 探测脚本输出
+scripts/*.txt
+
 # 测试/工具缓存
 .pytest_cache/
 .ruff_cache/

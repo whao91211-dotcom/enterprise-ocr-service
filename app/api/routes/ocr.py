@@ -1,64 +1,50 @@
-"""单张图片识别路由：multipart 在线上传 + JSON 单张提交。"""
+"""识别路由（简化版）：multipart 上传图片 → 同步 OCR → 8列清洗 → 落盘 csv。"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from app.api.deps import CurrentUser, get_current_user
-from app.api.routes.ingest import _run_sync
-from app.api.serializers import document_to_out
-from app.core.db import get_session
-from app.schemas import DocumentOut, SingleSubmitIn
-from app.services import ingest as ingest_svc
-from app.services.pipeline import PipelineError, run_single_pipeline
+from app.schemas import RecognizeOut
+from app.services.cleaner import SALES_KEYS
+from app.services.recognize import RecognizeError, check_image_bytes, recognize_sales
 
 router = APIRouter(tags=["ocr"])
 
 
-@router.post("/ocr/upload", response_model=DocumentOut, status_code=201)
-async def upload_image(
+@router.post("/ocr/recognize", response_model=RecognizeOut, status_code=200)
+async def recognize_image(
     file: UploadFile = File(...),
-    doc_type: str = Form(...),
-    session: AsyncSession = Depends(get_session),
-    user: CurrentUser = Depends(get_current_user),
+    doc_type: str = Form("sales"),
+    include_raw: bool = Form(False),
 ):
-    """在线上传单张图片并同步执行 OCR（multipart: file + doc_type）。"""
+    """上传销售单据图片，识别为 8 列 CSV 并落盘到 output/。
+
+    - file: 图片(png/jpg/jpeg/webp/bmp)
+    - doc_type: 单据类型，当前仅支持 sales
+    - include_raw: 是否在响应中附带模型原始返回（默认否）
+    """
     data = await file.read()
     try:
-        real_ext = ingest_svc.check_upload_bytes(data, file.filename or "")
-    except ingest_svc.IngestError as exc:
-        raise HTTPException(status_code=400, detail=f"图片校验失败: {exc}") from exc
+        check_image_bytes(data, file.filename or "")
+    except RecognizeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        outcome = await run_single_pipeline(
-            session,
-            image_bytes=data,
-            real_ext=real_ext,
-            file_name=file.filename,
-            content_type=file.content_type,
-            ingest_source="multipart",
-            original_ref=None,
-            doc_type=doc_type,
-            created_by=user.id,
-        )
-    except PipelineError as exc:
+        outcome = await recognize_sales(data, file_name=file.filename, doc_type=doc_type)
+    except RecognizeError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    await session.commit()
-    return await document_to_out(session, outcome.document)
 
-
-@router.post("/ocr/submit", response_model=DocumentOut, status_code=201)
-async def submit_image(
-    body: SingleSubmitIn,
-    session: AsyncSession = Depends(get_session),
-    user: CurrentUser = Depends(get_current_user),
-):
-    """对本地路径/URL/现有API 可访问的图片直接同步识别单张。"""
-    return await _run_sync(
-        session,
-        source=body.source.type,
-        ref=body.source.ref,
-        doc_type=body.doc_type,
-        created_by=user.id,
+    return RecognizeOut(
+        ok=True,
+        doc_type=outcome.doc_type,
+        file_name=outcome.file_name,
+        csv_file=outcome.csv_path.name,
+        csv_path=str(outcome.csv_path),
+        row_count=len(outcome.rows),
+        rows=outcome.rows,
+        columns=list(SALES_KEYS),
+        warnings=outcome.warnings,
+        model=outcome.model_name,
+        latency_ms=outcome.latency_ms,
+        raw=outcome.raw_content if include_raw else None,
     )

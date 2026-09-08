@@ -49,35 +49,12 @@ class Settings(BaseSettings):
     ocr_json_mode: bool = False  # 真实契约：返回 CSV 多行，非 JSON
     ocr_retries: int = 2  # 网络/5xx/超时额外重试次数（总尝试 = 该值 + 1）
 
-    # ---- 数据库 ----
-    # 默认 sqlite 免配置开箱即用（自动建表+种子）；生产用 .env 覆盖为 PostgreSQL
-    database_url: str = "sqlite+aiosqlite:///./data/dev.db"
+    # ---- 识别结果落盘 ----
+    output_dir: str = "./output"  # 每张图一个 .csv + .meta.json，平铺于此
+    allowed_exts: Annotated[list[str], NoDecode] = ["jpg", "jpeg", "png", "webp", "bmp"]
+    max_image_bytes: int = 20 * 1024 * 1024
 
-    # ---- 图片存储 ----
-    storage_dir: str = "./data/images"
-
-    # ---- 图片接入限制 ----
-    ingest_max_bytes: int = 20 * 1024 * 1024
-    # 以下列表字段环境变量按 CSV 解析（NoDecode 关闭 pydantic-settings 的 JSON 预解析）
-    ingest_allowed_roots: Annotated[list[str], NoDecode] = []  # local_path 允许根（空=禁用）
-    ingest_url_allowlist: Annotated[list[str], NoDecode] = []  # url/api 允许主机（"*" 全放行）
-    ingest_api_base_url: str = ""  # 现有文件模块取图 API base
-    ingest_api_token: str = ""
-    ingest_allowed_exts: Annotated[list[str], NoDecode] = ["jpg", "jpeg", "png", "webp", "bmp"]
-
-    # ---- 批量队列 ----
-    # 默认关闭（单张联调避免 worker 写锁冲突）；批量导入时设 >0 开启
-    batch_poll_interval_seconds: float = 0.0
-    batch_page_size: int = 5  # 每轮 worker 取出的队列项数
-
-    # ---- 身份与审核 ----
-    auth_mode: str = "none"  # 本地默认免鉴权；生产 header
-    image_url_ttl_seconds: int = 300
-    signing_secret: str = ""
-
-    @field_validator(
-        "ingest_allowed_roots", "ingest_url_allowlist", "ingest_allowed_exts", mode="before"
-    )
+    @field_validator("allowed_exts", mode="before")
     @classmethod
     def _csv_list(cls, v: object) -> list[str]:
         if isinstance(v, list):
@@ -86,21 +63,7 @@ class Settings(BaseSettings):
 
     @property
     def allowed_exts_set(self) -> set[str]:
-        return {e.lower().lstrip(".") for e in self.ingest_allowed_exts}
-
-    @property
-    def url_allowlist(self) -> set[str]:
-        return {h.lower() for h in self.ingest_url_allowlist}
-
-    @property
-    def allowed_roots(self) -> list[str]:
-        import os
-
-        return [os.path.normcase(os.path.abspath(r)) for r in self.ingest_allowed_roots]
-
-    @property
-    def signing_key(self) -> str | None:
-        return self.signing_secret or None
+        return {e.lower().lstrip(".") for e in self.allowed_exts}
 
 
 @lru_cache
