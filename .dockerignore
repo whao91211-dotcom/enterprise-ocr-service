@@ -1,0 +1,16 @@
+# 构建上下文排除项（.venv 200MB+ 不入镜像上下文）
+.git
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+data
+output
+.env
+.env.*
+!.env.example
+.python-version
+*.db
+.pytest_cache

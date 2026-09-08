@@ -1,0 +1,44 @@
+# enterprise-ocr-service 容器编排
+#
+# 场景1 单机自测:  docker compose up -d
+# 场景2 服务器部署(与 InternVL 模型同机): 见底部 OCR_BASE_URL 说明
+#
+# 注意: compose 不读 .env.example 的自定义字段；配置用环境变量覆盖（见下）
+
+services:
+  ocr:
+    build: .
+    image: enterprise-ocr-service:latest
+    container_name: enterprise-ocr-service
+    restart: unless-stopped
+    ports:
+      # 宿主机 8000 -> 容器 8000；需要改端口就改左边
+      - "8000:8000"
+    environment:
+      # --- OCR 模型服务地址 ---
+      # 同机直连模型: 若模型跑在宿主机(非容器), Linux 下用宿主网络或
+      #   host.docker.internal。Compshare pod 单机部署推荐:
+      #   OCR_BASE_URL=http://host.docker.internal:8080/v1  (模型原端口视实际)
+      # 或与模型容器同网时: http://<模型容器名>:<端口>/v1
+      OCR_BASE_URL: ${OCR_BASE_URL:-http://127.0.0.1:8080/v1}
+      OCR_MODEL: ${OCR_MODEL:-internvl3}
+      OCR_API_KEY: ${OCR_API_KEY:-}
+      OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-300}
+      OCR_MAX_TOKENS: ${OCR_MAX_TOKENS:-1024}
+      OCR_TEMPERATURE: ${OCR_TEMPERATURE:-0.7}
+      OCR_TOP_P: ${OCR_TOP_P:-0.8}
+      OCR_RETRIES: ${OCR_RETRIES:-0}
+      # --- 落盘 ---
+      OUTPUT_DIR: /srv/ocr/output
+      # 上传图片类型/大小
+      ALLOWED_EXTS: ${ALLOWED_EXTS:-jpg,jpeg,png,webp,bmp}
+      MAX_IMAGE_BYTES: ${MAX_IMAGE_BYTES:-20971520}
+    volumes:
+      # all_sales.csv 持久化在宿主机 ./output_data 目录（容器删除数据不丢）
+      - ./output_data:/srv/ocr/output
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
