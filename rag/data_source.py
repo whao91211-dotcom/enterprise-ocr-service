@@ -10,7 +10,6 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from app.core.config import get_settings
 from app.services.csv_store import total_csv_path
 
 STATUS_CONFIRMED = "已确认"

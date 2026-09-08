@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -114,7 +113,6 @@ async def rebuild():
 
 @app.get("/api/stats")
 async def stats():
-    from rag.ocr_tool import OCR_SERVICE_URL
     import httpx
 
     ocr_up = False
