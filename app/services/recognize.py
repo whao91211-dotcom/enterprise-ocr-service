@@ -26,6 +26,8 @@ class RecognizeOutcome:
     warnings: list[str] = field(default_factory=list)
     model_name: str = ""
     latency_ms: int = 0
+    skipped: bool = False  # 该图已人工确认且未 force → 跳过识别
+    message: str = ""  # skipped 时的说明
 
 
 SUPPORTED_DOC_TYPES = {"sales"}
@@ -53,10 +55,23 @@ async def recognize_sales(
     file_name: str | None,
     doc_type: str = "sales",
     prompt_mode: str | None = None,
+    force: bool = False,
 ) -> RecognizeOutcome:
-    """销售图识别主流程。doc_type 仅支持 sales（当前模板）。"""
+    """销售图识别主流程。doc_type 仅支持 sales（当前模板）。
+
+    重识别保护：该图已人工确认且未 force → 不调用模型，直接 skipped 返回。
+    """
     if doc_type not in SUPPORTED_DOC_TYPES:
         raise RecognizeError(f"单据类型暂不支持: {doc_type}（当前支持: {sorted(SUPPORTED_DOC_TYPES)}）")
+
+    if not force and csv_store.is_source_confirmed(file_name):
+        return RecognizeOutcome(
+            csv_path=csv_store.total_csv_path(),
+            file_name=file_name,
+            doc_type=doc_type,
+            skipped=True,
+            message=f"图片 '{file_name}' 已人工确认，重识别会覆盖修改；如需强制重识别请用 force=true",
+        )
 
     settings = get_settings()
     mode = prompt_mode or "cols8"

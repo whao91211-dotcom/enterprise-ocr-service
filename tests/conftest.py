@@ -75,7 +75,7 @@ def ocr_route():
     router.reset()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def out_dir() -> Path:
     d = Path(os.environ["OUTPUT_DIR"])
     # 每次测试清空，避免文件间串扰
