@@ -157,6 +157,28 @@ def test_intent_classify():
     assert suggest_route("help") is None
 
 
+def test_template_registry_multi_class():
+    from rag.templates import TEMPLATE_REGISTRY, detect_doc_type, get_template, list_templates
+
+    assert "sales" in TEMPLATE_REGISTRY
+    assert get_template("sales")["doc_type"] == "sales"
+    assert get_template("nope") is None
+    assert len(list_templates()) >= 1
+    # 意图识别能按类目关键词路由
+    assert detect_doc_type("识别这张销售单据") == "sales"
+    # 未提及类目默认返回 None（调用方按 sales 兜底）
+    assert detect_doc_type("随便聊聊") is None
+
+
+def test_ocr_recognize_tool_has_doc_type():
+    """ocr_recognize Tool 应支持 doc_type 参数(多类目扩展)。"""
+    from rag.agent import TOOL_REGISTRY
+
+    fn = TOOL_REGISTRY["ocr_recognize"]
+    schema = fn.args_schema.model_fields if hasattr(fn, "args_schema") else {}
+    assert "doc_type" in schema
+
+
 def test_web_routes():
     from rag.web import app
 

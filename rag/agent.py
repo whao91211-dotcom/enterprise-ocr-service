@@ -62,18 +62,20 @@ def build_messages(
 
 
 @tool
-def ocr_recognize(image_path: str) -> str:
-    """识别一张销售单据图片并返回结构化 8 列数据（顾客公司/发注日/源公司/项目/数量/单价/税率/金额）。
+def ocr_recognize(image_path: str, doc_type: str = "sales") -> str:
+    """识别一张单据图片并返回结构化数据。
 
     Args:
         image_path: 本机可访问的图片文件路径(png/jpg/jpeg/webp/bmp)。
+        doc_type: 单据类目，默认 sales(销售单据)。可扩展 invoice(发票)/contract(合同)等
+                  （取决于 OCR 服务已注册的模板，见 rag/templates.py）。
     """
     p = Path(image_path)
     if not p.is_file():
         return f"错误: 图片不存在: {image_path}"
     data = p.read_bytes()
     try:
-        out = recognize_image_bytes(data, p.name)
+        out = recognize_image_bytes(data, p.name, doc_type=doc_type)
     except Exception as e:  # noqa: BLE001
         return f"识别失败: {e}"
     if out.get("skipped"):
