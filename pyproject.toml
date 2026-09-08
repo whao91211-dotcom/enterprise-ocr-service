@@ -1,6 +1,6 @@
 [project]
 name = "enterprise-ocr-service"
-version = "0.2.0"
+version = "0.3.0"
 description = "销售单据识别 → 8列CSV落盘 服务 (FastAPI + InternVL OpenAI兼容端)"
 requires-python = ">=3.11"
 dependencies = [

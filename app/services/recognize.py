@@ -78,16 +78,10 @@ async def recognize_sales(
     if not cleaned_rows:
         raise RecognizeError("清洗后无有效数据行（模型返回内容见 raw）")
 
-    path = csv_store.save_result_csv(
+    path = csv_store.save_result_rows(
         rows=cleaned_rows,
         file_name=file_name,
         doc_type=doc_type,
-        meta={
-            "model": outcome.model_name,
-            "latency_ms": outcome.latency_ms,
-            "prompt_mode": mode,
-            "warnings": warnings,
-        },
     )
     return RecognizeOutcome(
         csv_path=path,

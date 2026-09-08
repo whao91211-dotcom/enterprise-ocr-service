@@ -20,7 +20,7 @@ def _build_app() -> FastAPI:
             "上传销售单据图片 → InternVL(OpenAI 兼容, 本地 9052) 识别 "
             "→ 8 列清洗(desc,date,from,item,amount,price,tax,sum) → 落盘 output/ 每图一个 csv。"
         ),
-        version="0.2.0",
+        version="0.3.0",
     )
 
     from app.api.routes import health, ocr

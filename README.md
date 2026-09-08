@@ -1,7 +1,8 @@
-# 销售单据识别 → CSV 落盘服务（v0.2 简化版）
+# 销售单据识别 → 汇总 CSV 服务（v0.3 简化版）
 
 上传销售单据图片 → InternVL（OpenAI 兼容端点，本地 9052 转发）识别 → 8 列清洗 →
-**每张图落盘一个 .csv 文档**（平铺在 `output/`），不再依赖数据库 / 人工审核 / RAG 路由。
+**所有图片数据汇总写入单个 `output/all_sales.csv`**（同名覆盖更新），不再依赖数据库 /
+人工审核 / RAG 路由。
 
 > v1（数据库版：文档表 + 审核状态机 + /rag 出口）已 git 存档：tag `v1-archive` / 分支 `archive-v1`。
 > 人工修改环节将在全流程整合阶段重新加入（计划中）。
@@ -31,7 +32,7 @@ app/
     prompt_builder.py   # 销售 8 列指令（cols8/train/short 模式）
     result_parser.py    # CSV 多行容错解析
     cleaner.py          # 8 列清洗（上表规则）
-    csv_store.py        # 落盘 .csv(UTF-8 BOM) + .meta.json
+    csv_store.py        # 汇总单文件 all_sales.csv（同名覆盖 + 锁）
     recognize.py        # 编排：字节 → OCR → 解析 → 清洗 → 落盘
 ```
 
@@ -60,8 +61,8 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```json
 {
   "ok": true, "doc_type": "sales", "row_count": 2,
-  "csv_file": "Sample100_20250410_153000.csv",
-  "csv_path": "C:\\...\\output\\Sample100_20250410_153000.csv",
+  "csv_file": "all_sales.csv",
+  "csv_path": "C:\\...\\output\\all_sales.csv",
   "rows": [
     {"desc": "SETソフトウェア株式会社", "date": "2024年05月22日",
      "from": "菱洋電子貿易(上海)有限公司", "item": "掃除機",
@@ -72,12 +73,15 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 }
 ```
 
-## 输出文件
+## 输出文件（单一总 CSV，同名覆盖）
 
-`output/` 下每张图两个文件（同名不同后缀）：
+所有图片识别结果**汇总到一个文件**，便于后续整表喂给 RAG：
 
-- `原图名_YYYYmmdd_HHMMSS.csv` — UTF-8 BOM，Excel 直接打开不乱码；首行中文表头（顾客公司/发注日/源公司/项目/数量/单价/税率/金额）
-- `原图名_YYYYmmdd_HHMMSS.meta.json` — 溯源：doc_type / 原图名 / row_count / 识别时间 / model / latency / warnings
+- `output/all_sales.csv` — UTF-8 BOM，Excel 直接打开不乱码
+- 列：`源图片文件, 识别时间, 顾客公司, 发注日, 源公司, 项目, 数量, 单价, 税率, 金额`
+- 策略：以「源图片文件」为键 —— 同一张图重新识别后**覆盖旧行**（只保留最新一批），
+  其它图的行不受影响；不同图依次追加，行数持续累积
+- 无每图 .meta.json（溯源信息在行的「源图片文件 + 识别时间」两列中）
 
 ## 9052 InternVL 契约（实测固化的关键结论）
 
@@ -98,5 +102,5 @@ ruff check app tests scripts
 ## 人工修改环节（暂缓，整合阶段再做）
 
 产品最终形态要求"识别结果无论如何都给人工修改机会"，本版刻意不实现修改 API，
-识别数据直接落盘 CSV —— 你可以随时手工编辑 `output/*.csv`。整合阶段再引入：
+识别数据直接写入 `output/all_sales.csv` —— 你可以随时手工编辑。整合阶段再引入：
 修改接口 → 版本/审计 → 终稿交付 RAG。

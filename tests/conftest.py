@@ -78,6 +78,11 @@ def ocr_route():
 @pytest.fixture
 def out_dir() -> Path:
     d = Path(os.environ["OUTPUT_DIR"])
+    # 每次测试清空，避免文件间串扰
+    if d.exists():
+        for child in d.iterdir():
+            if child.is_file():
+                child.unlink()
     d.mkdir(parents=True, exist_ok=True)
     return d
 

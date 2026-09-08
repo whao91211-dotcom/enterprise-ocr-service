@@ -1,8 +1,9 @@
-"""recognize API 集成测试：上传 → mock OCR → 8 列清洗 → 落盘 csv。"""
+"""recognize API 集成测试：上传 → mock OCR → 8 列清洗 → 写入总 csv。"""
 
 import csv
 from pathlib import Path
 
+from app.services.csv_store import ALL_SALES_CSV
 from tests.conftest import PNG_SAMPLE, ocr_response, upload_image
 
 
@@ -20,14 +21,26 @@ async def test_recognize_full_flow(client, ocr_route, out_dir: Path):
     assert first["from"] == "菱洋電子貿易(上海)有限公司"
     assert first["price"] == "19121.00"
 
-    # 落盘文件存在且内容正确
+    # 落盘到总 csv（路径以 all_sales.csv 结尾）
     csv_path = Path(data["csv_path"])
     assert csv_path.is_file()
+    assert csv_path.name == ALL_SALES_CSV
     assert csv_path.parent == out_dir
     with csv_path.open(encoding="utf-8-sig", newline="") as f:
         lines = list(csv.reader(f))
-    assert lines[0] == ["顾客公司", "发注日", "源公司", "项目", "数量", "单价", "税率", "金额"]
+    assert lines[0] == ["源图片文件", "识别时间", "顾客公司", "发注日", "源公司", "项目", "数量", "单价", "税率", "金额"]
     assert len(lines) == 3  # 表头 + 2 行
+    assert lines[1][0] == "Sample100.png"  # 源图名列
+
+
+async def test_two_images_accumulate_same_file(client, ocr_route, out_dir: Path):
+    await upload_image(client, filename="a.png")
+    await upload_image(client, filename="b.png")
+    with (out_dir / ALL_SALES_CSV).open(encoding="utf-8-sig", newline="") as f:
+        lines = list(csv.reader(f))
+    assert len(lines) == 5  # 表头 + 2 + 2
+    srcs = {ln[0] for ln in lines[1:]}
+    assert srcs == {"a.png", "b.png"}
 
 
 async def test_recognize_include_raw(client, ocr_route):

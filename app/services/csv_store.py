@@ -1,24 +1,28 @@
-"""识别结果落盘：每张图一个 .csv 文档，平铺在 output/ 目录。
+"""识别结果落盘：所有图片数据汇总到 output/ 下的【单一总 CSV】，同名覆盖更新。
 
-文件命名: {原图名(去扩展)}_YYYYmmdd_HHMMSS.csv，同秒冲突加序号。
-内容: UTF-8 with BOM（Excel 直接打开不乱码）；首行表头按 8 列中文标签，
-其余行为清洗后的数据。另写同名 .meta.json 记录原图/识别时间/模型等信息。
+文件: {output_dir}/all_sales.csv（UTF-8 with BOM，Excel 直接打开不乱码）
+列:   源图片文件, 识别时间, 顾客公司, 发注日, 源公司, 项目, 数量, 单价, 税率, 金额
+策略: 每次识别以「源图片文件名」为键 —— 先移除该图的旧行，再追加本批新行
+      （即同一张图重识别后只保留最新一批，其它图的行不动）。
+线程安全: 全局锁串行化读写（本地单进程足够）。
 """
 
 from __future__ import annotations
 
 import csv
-import json
-import os
-import re
+import threading
 from datetime import datetime
 from pathlib import Path
 
 from app.core.config import get_settings
 from app.services.cleaner import SALES_KEYS
 
-# 表头: key -> 中文标签（与用户确认的标签一致）
+ALL_SALES_CSV = "all_sales.csv"
+
+# 文件列: 前缀两列 + 8 列数据。key -> 中文表头
 HEADERS: dict[str, str] = {
+    "source_file": "源图片文件",
+    "recognized_at": "识别时间",
     "desc": "顾客公司",
     "date": "发注日",
     "from": "源公司",
@@ -28,13 +32,10 @@ HEADERS: dict[str, str] = {
     "tax": "税率",
     "sum": "金额",
 }
+PREFIX_KEYS = ["source_file", "recognized_at"]
+ALL_KEYS = PREFIX_KEYS + SALES_KEYS
 
-
-def _sanitize_stem(file_name: str | None) -> str:
-    name = os.path.basename(file_name or "image")
-    stem = re.sub(r"(?i)\.(png|jpe?g|webp|bmp|gif)$", "", name)
-    stem = re.sub(r'[\\/:*?"<>|\s]+', "_", stem).strip("_") or "image"
-    return stem
+_write_lock = threading.Lock()
 
 
 def _output_root() -> Path:
@@ -43,50 +44,58 @@ def _output_root() -> Path:
     return root
 
 
-def _unique_path(root: Path, stem: str) -> Path:
-    base = root / f"{stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    path = base.with_suffix(".csv")
-    n = 1
-    while path.exists():
-        path = root / f"{stem}_{n}.csv"
-        n += 1
-    return path
+def total_csv_path() -> Path:
+    """总 CSV 文件路径（尚未确保存在）。"""
+    return _output_root() / ALL_SALES_CSV
 
 
-def save_result_csv(
+def _read_existing(path: Path) -> list[dict[str, str]]:
+    """读取现有总 CSV（含表头则跳过），返回 dict 行列表（key 为 ALL_KEYS 英文）。"""
+    if not path.exists():
+        return []
+    rows: list[dict[str, str]] = []
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            return []
+        label_to_key = {v: k for k, v in HEADERS.items()}
+        for line in reader:
+            mapped: dict[str, str] = {}
+            for label, value in line.items():
+                key = label_to_key.get(label, label)
+                mapped[key] = value or ""
+            rows.append({k: mapped.get(k, "") for k in ALL_KEYS})
+    return rows
+
+
+def save_result_rows(
     *,
     rows: list[dict],
     file_name: str | None,
     doc_type: str,
     meta: dict | None = None,
 ) -> Path:
-    """清洗后的行落盘为 CSV。返回文件路径。
+    """把某张图的清洗结果 upsert 进总 CSV。返回总文件路径。
 
-    rows: list[dict]，键为 SALES_KEYS 顺序中的 key（允许缺失/多余，写盘按固定列序）。
+    rows: list[dict]，键为 SALES_KEYS 中的 key（允许缺失/多余，写盘按固定列序）。
+    以 file_name 为覆盖键：先移除同名旧行，再追加新行；其它图的行保留。
     """
-    root = _output_root()
-    path = _unique_path(root, _sanitize_stem(file_name))
-    headers = [HEADERS[k] for k in SALES_KEYS]
+    source = file_name or "unknown"
+    now = datetime.now().isoformat(timespec="seconds")
+    data_rows: list[dict[str, str]] = []
+    for row in rows:
+        data_rows.append(
+            {"source_file": source, "recognized_at": now, **{k: str(row.get(k, "")) for k in SALES_KEYS}}
+        )
 
-    with path.open("w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(headers)
-        for row in rows:
-            writer.writerow([str(row.get(k, "")) for k in SALES_KEYS])
-
-    # 同名的 .meta.json（给 RAG/人工溯源用）
-    meta_path = path.with_suffix(".meta.json")
-    meta_data = {
-        "doc_type": doc_type,
-        "source_file": file_name,
-        "csv_file": path.name,
-        "row_count": len(rows),
-        "recognized_at": datetime.now().isoformat(timespec="seconds"),
-        "columns": SALES_KEYS,
-    }
-    if meta:
-        meta_data.update(meta)
-    meta_path.write_text(
-        json.dumps(meta_data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    path = total_csv_path()
+    with _write_lock:
+        existing = _read_existing(path)
+        kept = [r for r in existing if r.get("source_file") != source]
+        merged = kept + data_rows
+        with path.open("w", encoding="utf-8-sig", newline="") as f:
+            # 表头用中文标签（DictWriter.writeheader 会写英文 key，故手动写首行）
+            writer = csv.DictWriter(f, fieldnames=ALL_KEYS, extrasaction="ignore")
+            writer.writerow({k: HEADERS[k] for k in ALL_KEYS})
+            writer.writerows(merged)
     return path

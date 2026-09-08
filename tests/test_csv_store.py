@@ -1,48 +1,56 @@
-"""csv_store 单元测试：落盘平铺 output/ + UTF-8 BOM + meta。"""
+"""csv_store 单元测试：单文件总账 + 同名覆盖更新。"""
 
 import csv
 from pathlib import Path
 
 from app.services import csv_store
+from app.services.csv_store import ALL_SALES_CSV
+
+ROWS_A = [
+    {"desc": "顾客A", "date": "2025年08月07日", "from": "源社", "item": "X",
+     "amount": "4", "price": "14781.00", "tax": "0.10", "sum": "59124.00"},
+]
+ROWS_B = [
+    {"desc": "顾客B", "date": "2025-08-07", "from": "源社2", "item": "Y",
+     "amount": "2", "price": "100.00", "tax": "0.08", "sum": "200.00"},
+]
 
 
-def test_save_result_csv_creates_file(out_dir: Path):
-    rows = [
-        {"desc": "顾客A", "date": "2025年08月07日", "from": "源社", "item": "X",
-         "amount": "4", "price": "14781.00", "tax": "0.10", "sum": "59124.00"},
-    ]
-    path = csv_store.save_result_csv(rows=rows, file_name="Sample100.png", doc_type="sales")
-    assert path.is_file()
-    assert path.parent == out_dir  # 平铺在 output/
-    # 文件名含原图名与时间戳
-    assert path.name.startswith("Sample100_")
-    assert path.suffix == ".csv"
-
-
-def test_csv_bom_and_headers(out_dir: Path):
-    rows = [
-        {"desc": "顾客A", "date": "2025年08月07日", "from": "源社", "item": "X",
-         "amount": "4", "price": "14781.00", "tax": "0.10", "sum": "59124.00"},
-    ]
-    path = csv_store.save_result_csv(rows=rows, file_name="a.png", doc_type="sales")
-    raw = path.read_bytes()
-    assert raw.startswith(b"\xef\xbb\xbf")  # UTF-8 BOM
+def _read_all(path: Path) -> list[dict]:
     with path.open(encoding="utf-8-sig", newline="") as f:
-        lines = list(csv.reader(f))
-    assert lines[0] == ["顾客公司", "发注日", "源公司", "项目", "数量", "单价", "税率", "金额"]
-    assert lines[1] == ["顾客A", "2025年08月07日", "源社", "X", "4", "14781.00", "0.10", "59124.00"]
+        return list(csv.DictReader(f))
 
 
-def test_meta_json_written(out_dir: Path):
-    rows = [{"desc": "a", "date": "2025-01-01", "from": "b", "item": "c",
-             "amount": "1", "price": "1.00", "tax": "0", "sum": "1.00"}]
-    path = csv_store.save_result_csv(rows=rows, file_name="x.png", doc_type="sales",
-                                     meta={"model": "m", "latency_ms": 100})
-    meta_path = path.with_suffix(".meta.json")
-    assert meta_path.is_file()
-    import json
+def test_single_file_accumulates(out_dir: Path):
+    p1 = csv_store.save_result_rows(rows=ROWS_A, file_name="a.png", doc_type="sales")
+    assert p1.name == ALL_SALES_CSV
+    assert p1.parent == out_dir
+    p2 = csv_store.save_result_rows(rows=ROWS_B, file_name="b.png", doc_type="sales")
+    assert p1 == p2  # 同一总文件
 
-    data = json.loads(meta_path.read_text(encoding="utf-8"))
-    assert data["row_count"] == 1
-    assert data["source_file"] == "x.png"
-    assert data["model"] == "m"
+    rows = _read_all(p1)
+    assert len(rows) == 2
+    assert {r["源图片文件"] for r in rows} == {"a.png", "b.png"}
+
+
+def test_same_name_overwrites_old_rows(out_dir: Path):
+    csv_store.save_result_rows(rows=ROWS_A, file_name="a.png", doc_type="sales")
+    # 同一张图再次识别（行数可能变化）
+    csv_store.save_result_rows(rows=ROWS_A + ROWS_B, file_name="a.png", doc_type="sales")
+
+    rows = _read_all(csv_store.total_csv_path())
+    assert len(rows) == 2  # a.png 的旧行被替换为新 2 行，不再叠加
+
+
+def test_header_columns(out_dir: Path):
+    csv_store.save_result_rows(rows=ROWS_A, file_name="a.png", doc_type="sales")
+    with csv_store.total_csv_path().open(encoding="utf-8-sig", newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader)
+    assert header == ["源图片文件", "识别时间", "顾客公司", "发注日", "源公司", "项目", "数量", "单价", "税率", "金额"]
+
+
+def test_utf8_bom(out_dir: Path):
+    csv_store.save_result_rows(rows=ROWS_A, file_name="a.png", doc_type="sales")
+    raw = csv_store.total_csv_path().read_bytes()
+    assert raw.startswith(b"\xef\xbb\xbf")
