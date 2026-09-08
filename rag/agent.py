@@ -1,0 +1,159 @@
+"""企业文档处理智能体（核心编排）。
+
+用 langchain_deepseek.ChatDeepSeek（DeepSeek 官方接入）+ langchain tool calling 实现：
+  用户提问 → LLM 判断调哪个 Tool(OCR 识别 / RAG 查询 / 直接回答) → 执行 Tool →
+  结果回填 → LLM 给出最终回答（含引用溯源）。
+
+Tools（可插拔扩展）:
+  - ocr_recognize: 上传图片路径，识别销售单据 → 结构化 8 列 + 落盘待确认
+  - rag_query:     检索已人工确认的销售数据（BM25）→ 返回命中行
+扩展新文档类型 = 注册新 Tool / 新意图，见 register_tool。
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any, Callable
+
+from langchain_core.tools import tool
+from langchain_deepseek import ChatDeepSeek
+
+from rag import retriever
+from rag.ocr_tool import confirm_source as _confirm_source
+from rag.ocr_tool import recognize_image_bytes
+
+SYSTEM_PROMPT = (
+    "你是一个企业文档处理智能体，负责销售单据的识别与查询。\n"
+    "工作准则:\n"
+    "1. 用户提供图片要求识别/提取单据信息时 → 调用 ocr_recognize 工具。\n"
+    "2. 用户询问已入库的销售数据(某公司买过什么/某商品销量/金额统计等) → 调用 rag_query 工具。\n"
+    "3. rag_query 返回的数据是人工确认过的准确记录，回答时要基于它并给出数据来源；\n"
+    "   如果检索没有命中，如实说明数据库中没有相关信息，不要编造。\n"
+    "4. 若用户同时给图片又提问，先识别再把结果纳入回答。\n"
+    "5. 保持简洁、结构化的回答；中日文专有名词按原文输出。"
+)
+
+
+# ---------- Tool 定义 ----------
+
+@tool
+def ocr_recognize(image_path: str) -> str:
+    """识别一张销售单据图片并返回结构化 8 列数据（顾客公司/发注日/源公司/项目/数量/单价/税率/金额）。
+
+    Args:
+        image_path: 本机可访问的图片文件路径(png/jpg/jpeg/webp/bmp)。
+    """
+    p = Path(image_path)
+    if not p.is_file():
+        return f"错误: 图片不存在: {image_path}"
+    data = p.read_bytes()
+    try:
+        out = recognize_image_bytes(data, p.name)
+    except Exception as e:  # noqa: BLE001
+        return f"识别失败: {e}"
+    if out.get("skipped"):
+        return out.get("message", "该图已确认，跳过识别")
+    rows = out.get("rows") or []
+    if not rows:
+        return f"识别到 0 行。warnings={out.get('warnings')}"
+    lines = [f"识别完成: {out.get('row_count')} 行，已写入 {out.get('csv_file')}（待确认）"]
+    for i, r in enumerate(rows, start=1):
+        lines.append(
+            f"{i}. 顾客公司:{r.get('desc','')} 发注日:{r.get('date','')} "
+            f"源公司:{r.get('from','')} 项目:{r.get('item','')} "
+            f"数量:{r.get('amount','')} 单价:{r.get('price','')} "
+            f"税率:{r.get('tax','')} 金额:{r.get('sum','')}"
+        )
+    if out.get("warnings"):
+        lines.append("警告: " + "; ".join(out["warnings"]))
+    return "\n".join(lines)
+
+
+@tool
+def rag_query(question: str, top_k: int = 5) -> str:
+    """在已人工确认的销售数据中检索与问题相关的记录，返回命中明细(含来源图片)。
+
+    Args:
+        question: 要检索的问题/关键词，如“某公司 2024 年买了什么空调”。
+        top_k: 返回条数(默认5)。
+    """
+    hits = retriever.search(question, top_k=top_k)
+    if not hits:
+        return "（未检索到相关已确认销售数据）"
+    return retriever.format_hits(hits)
+
+
+@tool
+def rag_rebuild() -> str:
+    """识别出新图并确认后，刷新 RAG 检索索引（把新确认数据纳入检索）。"""
+    n = retriever.touch()
+    return f"索引已刷新，当前已确认文档 {n} 条"
+
+
+# ---------- 会话编排 ----------
+
+TOOL_REGISTRY: dict[str, Callable[..., str]] = {
+    "ocr_recognize": ocr_recognize,
+    "rag_query": rag_query,
+    "rag_rebuild": rag_rebuild,
+}
+
+
+def get_llm() -> ChatDeepSeek:
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not key:
+        env_path = Path(__file__).resolve().parents[1] / ".env"
+        if env_path.exists():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("DEEPSEEK_API_KEY="):
+                    key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+    if not key:
+        raise RuntimeError("DEEPSEEK_API_KEY 未配置：请在项目根 .env 填入（platform.deepseek.com 申请）")
+    return ChatDeepSeek(model="deepseek-chat", api_key=key, temperature=0.3)
+
+
+def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> str:
+    """执行一轮对话：LLM 可能多次调用工具后给出最终回答。"""
+    llm = get_llm()
+    llm_with_tools = llm.bind_tools(list(TOOL_REGISTRY.values()))
+
+    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history[-8:])  # 保留最近上下文
+    messages.append({"role": "user", "content": user_input})
+
+    for _step in range(6):  # 工具调用轮次上限，防死循环
+        resp = llm_with_tools.invoke(messages)
+        content = getattr(resp, "content", "") or ""
+        tool_calls = getattr(resp, "tool_calls", None) or []
+        if not tool_calls:
+            return content or "（模型未返回内容）"
+
+        # 收集本轮工具调用结果
+        messages.append(
+            {"role": "assistant", "content": content, "tool_calls": [
+                {"id": tc.get("id", ""), "type": "function",
+                 "function": {"name": tc.get("name", ""), "arguments": tc.get("args", {})}}
+                for tc in tool_calls
+            ]}
+        )
+        for tc in tool_calls:
+            name = tc.get("name", "")
+            args = tc.get("args") or {}
+            fn = TOOL_REGISTRY.get(name)
+            if fn is None:
+                result = f"未知工具: {name}"
+            else:
+                try:
+                    result = str(fn(**args)) if isinstance(args, dict) else str(fn(args))
+                except Exception as e:  # noqa: BLE001
+                    result = f"工具执行出错: {e}"
+            messages.append({"role": "tool", "content": result, "tool_call_id": tc.get("id", "")})
+    return "（工具调用次数过多，请缩小问题范围）"
+
+
+def ask(question: str) -> str:
+    """便捷入口：单轮问答。"""
+    return run_turn(question)
