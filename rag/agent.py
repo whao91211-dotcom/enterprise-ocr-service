@@ -140,20 +140,32 @@ def get_llm() -> ChatDeepSeek:
     return ChatDeepSeek(model="deepseek-chat", api_key=key, temperature=0.3)
 
 
-def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> str:
-    """执行一轮对话：LLM 可能多次调用工具后给出最终回答。"""
+def run_turn_events(user_input: str, history: list[dict[str, Any]] | None = None):
+    """执行一轮对话，产出事件流(生成器)。事件 dict:
+        {"type": "intent", "intent": "..."}          意图识别结果
+        {"type": "llm_content", "text": "..."}        模型的中间文本(工具调用前/后)
+        {"type": "tool_start", "name": "...", "args": {...}}
+        {"type": "tool_result", "name": "...", "result": "..."}
+        {"type": "done", "answer": "最终回答"}
+    """
     llm = get_llm()
     llm_with_tools = llm.bind_tools(list(TOOL_REGISTRY.values()))
 
     messages = build_messages(user_input, history)
+    from rag.intent import classify as _ci
 
-    for _step in range(6):  # 工具调用轮次上限，防死循环
+    yield {"type": "intent", "intent": _ci(user_input)}
+
+    for _step in range(6):
         resp = llm_with_tools.invoke(messages)
         content = getattr(resp, "content", "") or ""
         tool_calls = getattr(resp, "tool_calls", None) or []
         if not tool_calls:
-            return content or "（模型未返回内容）"
+            yield {"type": "done", "answer": content or "（模型未返回内容）"}
+            return
 
+        if content:
+            yield {"type": "llm_content", "text": content}
         # 收集本轮工具调用结果
         messages.append(
             {
@@ -176,6 +188,7 @@ def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> st
             if fn is None:
                 result = f"未知工具: {name}"
             else:
+                yield {"type": "tool_start", "name": name, "args": args}
                 try:
                     # StructuredTool: 用 invoke(dict) 调用；也兼容裸函数
                     if hasattr(fn, "invoke"):
@@ -184,8 +197,17 @@ def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> st
                         result = str(fn(**args)) if isinstance(args, dict) else str(fn(args))
                 except Exception as e:  # noqa: BLE001
                     result = f"工具执行出错: {e}"
+                yield {"type": "tool_result", "name": name, "result": result}
             messages.append({"role": "tool", "content": result, "tool_call_id": tc.get("id", "")})
-    return "（工具调用次数过多，请缩小问题范围）"
+    yield {"type": "done", "answer": "（工具调用次数过多，请缩小问题范围）"}
+
+
+def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> str:
+    """执行一轮对话（便捷版）：只返回最终回答文本。"""
+    for ev in run_turn_events(user_input, history):
+        if ev.get("type") == "done":
+            return ev["answer"]
+    return "（未获得回答）"
 
 
 def ask(question: str) -> str:

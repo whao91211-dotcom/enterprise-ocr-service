@@ -29,6 +29,7 @@ _PAGE = """<!doctype html>
  body{font-family:system-ui,sans-serif;max-width:860px;margin:24px auto;padding:0 16px;background:#f7f8fa;color:#222}
  h1{font-size:20px} .card{background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:16px;margin:12px 0}
  .msg{white-space:pre-wrap;line-height:1.6} .user{color:#0b57d0;font-weight:600}
+ .trace{color:#5a5a5a;font-size:12px;margin:2px 0;font-family:Consolas,monospace}
  .tool{color:#7a5c00;background:#fff6dc;border-radius:6px;padding:2px 8px;font-size:13px}
  #chat{height:46vh;overflow-y:auto;border:1px solid #d5d9e0;border-radius:8px;padding:12px;background:#fff}
  input[type=text]{width:78%;padding:10px;border:1px solid #ccc;border-radius:8px}
@@ -52,16 +53,51 @@ async function sendMsg(){
   const q = document.getElementById('q').value.trim();
   if(!q) return false;
   appendMsg('user', q);
+  history.push({role:'user', content:q});
+  history = history.slice(-20);
   document.getElementById('q').value='';
+  const box = appendMsg('bot', '…');
+  box.id = 'cur';
   try{
-    const r = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'},
+    const r = await fetch('/api/chat/stream', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({message:q, history})});
-    const j = await r.json();
-    if(!r.ok) throw new Error(j.detail||r.status);
-    history = j.history || [];
-    appendMsg('bot', j.answer);
-  }catch(e){ appendMsg('bot', '⚠️ 错误: '+e.message); }
+    if(!r.ok){ const e = await r.json(); throw new Error(e.detail||r.status); }
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let acc = '';
+    let doneEv = null;
+    while(true){
+      const {value, done} = await reader.read();
+      if(done) break;
+      acc += dec.decode(value, {stream:true});
+      const parts = acc.split('\n\n');
+      acc = parts.pop();
+      for(const part of parts){
+        if(!part.startsWith('data: ')) continue;
+        const ev = JSON.parse(part.slice(6));
+        if(ev.type==='intent'){ addLine(box, '🧭 意图: '+ev.intent); }
+        else if(ev.type==='tool_start'){ addLine(box, '🔧 调用工具 '+ev.name+'('+JSON.stringify(ev.args)+')…'); }
+        else if(ev.type==='tool_result'){ addLine(box, '    ↳ '+String(ev.result).slice(0,220)); }
+        else if(ev.type==='done'){ doneEv=ev.answer; }
+        else if(ev.type==='error'){ addLine(box, '⚠️ '+ev.message); }
+      }
+    }
+    if(doneEv!=null){ box.textContent = '🤖 ' + doneEv; updateHistory(doneEv); }
+  }catch(e){
+    const cur=document.getElementById('cur'); if(cur) cur.textContent='⚠️ 错误: '+e.message;
+  }
   return false;
+}
+function addLine(box, t){
+  if(box.textContent==='…') box.textContent='';
+  const d=document.createElement('div');
+  d.className='trace'; d.textContent=t;
+  box.appendChild(d);
+  document.getElementById('chat').scrollTop=99999;
+}
+function updateHistory(answer){
+  history.push({role:'assistant', content: answer});
+  history = history.slice(-20);
 }
 function appendMsg(who, text){
   const d=document.createElement('div');
@@ -69,6 +105,7 @@ function appendMsg(who, text){
   d.textContent=(who==='user'?'🧑 ':'🤖 ')+text;
   document.getElementById('chat').appendChild(d);
   document.getElementById('chat').scrollTop=99999;
+  return d;
 }
 </script>
 </body>
@@ -103,6 +140,30 @@ async def chat(body: ChatIn):
     history.append({"role": "assistant", "content": answer})
     history = history[-20:]
     return ChatOut(answer=answer, history=history)
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(body: ChatIn):
+    """SSE 流式：逐步推送 意图识别→工具调用→工具结果→最终回答。"""
+
+    import json
+
+    from fastapi.responses import StreamingResponse
+
+    from rag.agent import run_turn_events
+
+    async def gen():
+        try:
+            for ev in run_turn_events(body.message, body.history):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except RuntimeError as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+        except Exception as e:  # noqa: BLE001
+            yield f"data: {json.dumps({'type': 'error', 'message': f'处理失败: {e}'}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+    )
 
 
 @app.post("/api/rebuild")
