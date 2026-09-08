@@ -1,16 +1,16 @@
 [project]
-name = "enterprise-ocr-service"
-version = "0.3.0"
-description = "销售单据识别 → 8列CSV落盘 服务 (FastAPI + InternVL OpenAI兼容端)"
+name = "enterprise-agent"
+version = "2.0.0"
+description = "企业文档处理智能体 v2: LangChain Agent + DeepSeek + OCR/Correct/RAG/Plot Tools"
 requires-python = ">=3.11"
 dependencies = [
+    "langchain>=1.0",
+    "langchain-deepseek>=1.1",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "pydantic>=2.7",
-    "pydantic-settings>=2.3",
-    "httpx>=0.27",
     "python-multipart>=0.0.9",
-    "tenacity>=8.3",
+    "httpx>=0.27",
+    "matplotlib>=3.8",
 ]
 
 [project.optional-dependencies]
@@ -45,11 +45,11 @@ extend-immutable-calls = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "tests"]
+known-first-party = ["agent", "db", "tools", "web"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app"]
+packages = ["agent", "db", "tools", "web"]
