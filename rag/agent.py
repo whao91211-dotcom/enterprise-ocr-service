@@ -13,14 +13,15 @@ Tools（可插拔扩展）:
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from langchain_core.tools import tool
 from langchain_deepseek import ChatDeepSeek
 
 from rag import retriever
-from rag.ocr_tool import confirm_source as _confirm_source
+from rag.intent import classify as classify_intent
 from rag.ocr_tool import recognize_image_bytes
 
 SYSTEM_PROMPT = (
@@ -35,7 +36,30 @@ SYSTEM_PROMPT = (
 )
 
 
+def build_messages(
+    user_input: str, history: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
+    """组装 system+history+user，并把显式意图识别作为引导注入 user 消息尾部。
+
+    意图识别结果辅助 LLM 选择工具（省 token、路由更稳），但最终以 function-calling 为准。
+    """
+    intent = classify_intent(user_input)
+    guidance = ""
+    if intent == "ocr_recognize":
+        guidance = "\n[系统提示] 检测到用户意图=识别图片，请调用 ocr_recognize 工具处理。"
+    elif intent == "rag_query":
+        guidance = "\n[系统提示] 检测到用户意图=查询已确认数据，请调用 rag_query 工具处理。"
+    elif intent == "help":
+        guidance = "\n[系统提示] 用户意图=询问能力，直接简要介绍你可以做什么，无需调用工具。"
+    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history[-8:])
+    messages.append({"role": "user", "content": user_input + guidance})
+    return messages
+
+
 # ---------- Tool 定义 ----------
+
 
 @tool
 def ocr_recognize(image_path: str) -> str:
@@ -60,10 +84,10 @@ def ocr_recognize(image_path: str) -> str:
     lines = [f"识别完成: {out.get('row_count')} 行，已写入 {out.get('csv_file')}（待确认）"]
     for i, r in enumerate(rows, start=1):
         lines.append(
-            f"{i}. 顾客公司:{r.get('desc','')} 发注日:{r.get('date','')} "
-            f"源公司:{r.get('from','')} 项目:{r.get('item','')} "
-            f"数量:{r.get('amount','')} 单价:{r.get('price','')} "
-            f"税率:{r.get('tax','')} 金额:{r.get('sum','')}"
+            f"{i}. 顾客公司:{r.get('desc', '')} 发注日:{r.get('date', '')} "
+            f"源公司:{r.get('from', '')} 项目:{r.get('item', '')} "
+            f"数量:{r.get('amount', '')} 单价:{r.get('price', '')} "
+            f"税率:{r.get('tax', '')} 金额:{r.get('sum', '')}"
         )
     if out.get("warnings"):
         lines.append("警告: " + "; ".join(out["warnings"]))
@@ -110,7 +134,9 @@ def get_llm() -> ChatDeepSeek:
                     key = line.split("=", 1)[1].strip().strip('"').strip("'")
                     break
     if not key:
-        raise RuntimeError("DEEPSEEK_API_KEY 未配置：请在项目根 .env 填入（platform.deepseek.com 申请）")
+        raise RuntimeError(
+            "DEEPSEEK_API_KEY 未配置：请在项目根 .env 填入（platform.deepseek.com 申请）"
+        )
     return ChatDeepSeek(model="deepseek-chat", api_key=key, temperature=0.3)
 
 
@@ -119,10 +145,7 @@ def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> st
     llm = get_llm()
     llm_with_tools = llm.bind_tools(list(TOOL_REGISTRY.values()))
 
-    messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    if history:
-        messages.extend(history[-8:])  # 保留最近上下文
-    messages.append({"role": "user", "content": user_input})
+    messages = build_messages(user_input, history)
 
     for _step in range(6):  # 工具调用轮次上限，防死循环
         resp = llm_with_tools.invoke(messages)
@@ -133,11 +156,18 @@ def run_turn(user_input: str, history: list[dict[str, Any]] | None = None) -> st
 
         # 收集本轮工具调用结果
         messages.append(
-            {"role": "assistant", "content": content, "tool_calls": [
-                {"id": tc.get("id", ""), "type": "function",
-                 "function": {"name": tc.get("name", ""), "arguments": tc.get("args", {})}}
-                for tc in tool_calls
-            ]}
+            {
+                "role": "assistant",
+                "content": content,
+                "tool_calls": [
+                    {
+                        "id": tc.get("id", ""),
+                        "type": "function",
+                        "function": {"name": tc.get("name", ""), "arguments": tc.get("args", {})},
+                    }
+                    for tc in tool_calls
+                ],
+            }
         )
         for tc in tool_calls:
             name = tc.get("name", "")

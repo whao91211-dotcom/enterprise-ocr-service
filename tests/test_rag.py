@@ -20,17 +20,71 @@ def sample_csv(tmp_path_factory):
     d = tmp_path_factory.mktemp("rag")
     p = d / "all_sales.csv"
     rows = [
-        ["a.png", "2026-01-01T00:00:00", "已确认", "小王", "2026-01-02T00:00:00",
-         "甲公司", "2025年08月07日", "乙社", "掃除機", "1", "19121.00", "0.10", "19121.00"],
-        ["a.png", "2026-01-01T00:00:00", "已确认", "小王", "2026-01-02T00:00:00",
-         "甲公司", "2025年08月07日", "乙社", "電子レンジ", "10", "2865.00", "0.10", "28650.00"],
-        ["b.png", "2026-01-03T00:00:00", "待确认", "", "",
-         "丙公司", "2025年09月01日", "丁社", "冷蔵庫", "2", "5000.00", "0.00", "10000.00"],
+        [
+            "a.png",
+            "2026-01-01T00:00:00",
+            "已确认",
+            "小王",
+            "2026-01-02T00:00:00",
+            "甲公司",
+            "2025年08月07日",
+            "乙社",
+            "掃除機",
+            "1",
+            "19121.00",
+            "0.10",
+            "19121.00",
+        ],
+        [
+            "a.png",
+            "2026-01-01T00:00:00",
+            "已确认",
+            "小王",
+            "2026-01-02T00:00:00",
+            "甲公司",
+            "2025年08月07日",
+            "乙社",
+            "電子レンジ",
+            "10",
+            "2865.00",
+            "0.10",
+            "28650.00",
+        ],
+        [
+            "b.png",
+            "2026-01-03T00:00:00",
+            "待确认",
+            "",
+            "",
+            "丙公司",
+            "2025年09月01日",
+            "丁社",
+            "冷蔵庫",
+            "2",
+            "5000.00",
+            "0.00",
+            "10000.00",
+        ],
     ]
     with p.open("w", encoding="utf-8-sig", newline="") as f:
         w = _csv.writer(f)
-        w.writerow(["源图片文件", "识别时间", "状态", "修改人", "修改时间",
-                    "顾客公司", "发注日", "源公司", "项目", "数量", "单价", "税率", "金额"])
+        w.writerow(
+            [
+                "源图片文件",
+                "识别时间",
+                "状态",
+                "修改人",
+                "修改时间",
+                "顾客公司",
+                "发注日",
+                "源公司",
+                "项目",
+                "数量",
+                "单价",
+                "税率",
+                "金额",
+            ]
+        )
         w.writerows(rows)
     return p
 
@@ -73,6 +127,19 @@ def test_agent_tool_registry():
     assert "ocr_recognize" in TOOL_REGISTRY
     assert "rag_query" in TOOL_REGISTRY
     assert "rag_rebuild" in TOOL_REGISTRY
+
+
+def test_intent_classify():
+    from rag.intent import classify, suggest_route
+
+    assert classify("帮我识别这张图 C:\\data\\Sample100.png") == "ocr_recognize"
+    assert classify("识别图片里的销售单据") == "ocr_recognize"
+    assert classify("SETソフトウェア株式会社2024年买了什么空気清浄機") == "rag_query"
+    assert classify("统计一下每台商品的数量") == "rag_query"
+    assert classify("你好") == "help"
+    assert suggest_route("rag_query") == "rag_query"
+    assert suggest_route("ocr_recognize") == "ocr_recognize"
+    assert suggest_route("help") is None
 
 
 def test_web_routes():
