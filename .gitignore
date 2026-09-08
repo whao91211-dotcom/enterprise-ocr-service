@@ -14,6 +14,10 @@ data/
 output/
 !output/.gitkeep
 
+# 网页上传的临时图片
+rag/uploads/*
+!rag/uploads/.gitkeep
+
 # 探测脚本输出
 scripts/*.txt
 

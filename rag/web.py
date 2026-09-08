@@ -8,17 +8,23 @@
 
 from __future__ import annotations
 
+import json
+import uuid
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from rag import retriever
-from rag.agent import run_turn
+from rag.agent import run_turn, run_turn_events
 from rag.ocr_tool import OCR_SERVICE_URL
 
-app = FastAPI(title="企业文档处理智能体", version="0.1.0")
+app = FastAPI(title="企业文档处理智能体", version="0.2.0")
+
+UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 _PAGE = """<!doctype html>
 <html lang="zh">
@@ -33,35 +39,65 @@ _PAGE = """<!doctype html>
  .tool{color:#7a5c00;background:#fff6dc;border-radius:6px;padding:2px 8px;font-size:13px}
  #chat{height:46vh;overflow-y:auto;border:1px solid #d5d9e0;border-radius:8px;padding:12px;background:#fff}
  input[type=text]{width:78%;padding:10px;border:1px solid #ccc;border-radius:8px}
+ .inbar{display:flex;gap:8px;align-items:center;margin-top:8px}
+ #q{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px}
  button{padding:10px 18px;border:none;background:#0b57d0;color:#fff;border-radius:8px;cursor:pointer}
+ button.sec{background:#fff;color:#0b57d0;border:1px solid #0b57d0}
  .hint{color:#666;font-size:13px;margin:6px 0}
- .history{display:none}
+ #preview{max-height:110px;border-radius:8px;border:1px dashed #aaa;display:none;margin:6px 0}
+ #upname{font-size:12px;color:#555;margin-left:6px}
+ #file{display:none}
 </style>
 </head>
 <body>
 <h1>📄 企业文档处理智能体</h1>
 <div class="hint">支持: ①上传图片识别销售单据(可先识别再确认入库) ②查询已确认销售数据(例:“SETソフトウェア株式会社 2024 年买了什么空调?”)</div>
 <div id="chat"></div>
-<form id="f" onsubmit="return sendMsg()">
- <input type="text" id="q" placeholder="输入问题… 例如: 帮我查一下哪张图里有 掃除機？" autocomplete="off">
- <button type="submit">发送</button>
-</form>
-<div class="hint">图片识别请在下方输入本机图片绝对路径，例如: C:\\Users\\wuhao\\Documents\\xxx\\Sample100.png</div>
+<div class="inbar">
+ <input type="text" id="q" placeholder="输入问题… 或点击📎上传图片识别销售单据" autocomplete="off">
+ <button type="button" class="sec" onclick="document.getElementById('file').click()">📎 上传图片</button>
+ <button type="button" onclick="sendMsg()">发送</button>
+ <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/bmp" onchange="onPick(event)">
+</div>
+<div>
+ <img id="preview" alt="预览">
+ <span id="upname"></span>
+</div>
+<div class="hint">上传图片后自动识别；也可直接文字提问(例：“SETソフトウェア株式会社 2024 年买了什么?”)</div>
 <script>
 let history = [];
+let pickedFile = null;
+function onPick(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  pickedFile = f;
+  document.getElementById('upname').textContent = '📎 ' + f.name;
+  const prev = document.getElementById('preview');
+  prev.src = URL.createObjectURL(f);
+  prev.style.display = 'block';
+}
 async function sendMsg(){
   const q = document.getElementById('q').value.trim();
-  if(!q) return false;
-  appendMsg('user', q);
-  history.push({role:'user', content:q});
+  if(!q && !pickedFile) return false;
+  const label = q || (pickedFile ? '上传图片识别' : '');
+  if(q){ appendMsg('user', q); history.push({role:'user', content:q}); }
+  if(pickedFile){ appendMsg('user', '📎 '+pickedFile.name); }
   history = history.slice(-20);
   document.getElementById('q').value='';
   const box = appendMsg('bot', '…');
   box.id = 'cur';
   try{
-    const r = await fetch('/api/chat/stream', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({message:q, history})});
-    if(!r.ok){ const e = await r.json(); throw new Error(e.detail||r.status); }
+    let r;
+    if(pickedFile){
+      const fd = new FormData();
+      fd.append('file', pickedFile);
+      if(q) fd.append('message', q);
+      r = await fetch('/api/chat/upload', {method:'POST', body: fd});
+    }else{
+      r = await fetch('/api/chat/stream', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({message:q, history})});
+    }
+    if(!r.ok){ let e={}; try{e=await r.json()}catch(_){}; throw new Error(e.detail||r.status); }
     const reader = r.body.getReader();
     const dec = new TextDecoder();
     let acc = '';
@@ -86,6 +122,11 @@ async function sendMsg(){
   }catch(e){
     const cur=document.getElementById('cur'); if(cur) cur.textContent='⚠️ 错误: '+e.message;
   }
+  // 清理本次上传状态
+  pickedFile = null;
+  document.getElementById('file').value = '';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('upname').textContent = '';
   return false;
 }
 function addLine(box, t){
@@ -146,15 +187,42 @@ async def chat(body: ChatIn):
 async def chat_stream(body: ChatIn):
     """SSE 流式：逐步推送 意图识别→工具调用→工具结果→最终回答。"""
 
-    import json
-
-    from fastapi.responses import StreamingResponse
-
-    from rag.agent import run_turn_events
-
     async def gen():
         try:
             for ev in run_turn_events(body.message, body.history):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except RuntimeError as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+        except Exception as e:  # noqa: BLE001
+            yield f"data: {json.dumps({'type': 'error', 'message': f'处理失败: {e}'}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
+    )
+
+
+@app.post("/api/chat/upload")
+async def chat_upload(file: UploadFile = File(...), message: str | None = None):
+    """上传图片 → 保存到 rag/uploads → 智能体识别并流式返回。
+
+    form 字段: file(图片), message(可选说明, 默认"请识别这张销售单据图片")。
+    """
+    ext = (file.filename or "image.png").rsplit(".", 1)[-1].lower()
+    if ext not in ("png", "jpg", "jpeg", "webp", "bmp"):
+        raise HTTPException(status_code=400, detail=f"不支持的图片类型: {ext}")
+    data = await file.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="上传文件为空")
+    saved = UPLOAD_DIR / f"{uuid.uuid4().hex}.{ext}"
+    saved.write_bytes(data)
+
+    # 把图片路径交给智能体（ocr_recognize Tool 读取该路径识别）
+    prompt = message or "请识别这张销售单据图片，并列出其中的商品信息"
+    full_msg = f"{prompt}\n[已上传图片，路径: {saved}]"
+
+    async def gen():
+        try:
+            for ev in run_turn_events(full_msg, None):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except RuntimeError as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
