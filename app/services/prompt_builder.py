@@ -33,7 +33,12 @@ def build_sales_instruction(mode: str = "cols8") -> str:
             parts.append(f"{_key}：代表{label}")  # 训练用中文说明见 train.jsonl
         return "\n".join(parts) + "\n# 输入图像"
     if mode == "cols8":
-        order = ",".join(k for k, _ in SALES_COLUMNS_8)
-        return TASK_HEAD + f"\n每行必须且只能包含 8 列，顺序固定为：{order}。"
+        # S1 实测(2026-09-08): 带中英语义的 8 列引导, from 列识别正确且不卡服务
+        # （纯英文 key 引导会把 from 错认成日期; 训练同款长 prompt 会卡死 9052）
+        return (
+            TASK_HEAD
+            + "\n每行输出 8 列，顺序固定为：desc(顾客公司),date(发注日),from(发货公司/源公司),"
+            "item(货物名称),amount(货物数量),price(货物单价),tax(货物税率),sum(货物金额)。"
+        )
     # short: 旧 6 列短指令（对照/存档）
     return TASK_HEAD

@@ -33,11 +33,17 @@ TRAIN_FULL = (
     "\nsum：代表货物金额"
     "\n# 输入图像"
 )
+SEMI_CN = (
+    "# 任务描述\n你需要对图像中的销售消息进行结构化信息提取，输出一个标准CSV格式的数据。"
+    "\n每行输出 8 列，顺序固定为：desc(顾客公司),date(发注日),from(发货公司/源公司),"
+    "item(货物名称),amount(货物数量),price(货物单价),tax(货物税率),sum(货物金额)。"
+)
 
 VARIANTS = [
     ("A_baseline_short", SHORT, "You are a helpful assistant."),
     ("B_eight_cols", EIGHT_COLS, "You are a helpful assistant."),
     ("C_train_full", TRAIN_FULL, "你是一个专业的图像文本分析助手"),
+    ("D_semi_cn", SEMI_CN, "You are a helpful assistant."),
 ]
 
 
