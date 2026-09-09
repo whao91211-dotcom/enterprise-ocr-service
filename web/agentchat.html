@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -21,31 +21,39 @@
  .head-status{margin-left:auto;color:var(--muted);font-size:12px;font-family:var(--mono)}
  .head-status b{color:var(--ok);font-weight:500}
  main{flex:1;display:flex;flex-direction:column;min-height:0}
- #messages{flex:1;overflow-y:auto;padding:24px 26px 8px}
- .msg{max-width:760px;margin:14px 0;font-size:14.5px;line-height:1.7}
+ #messages{flex:1;overflow-y:auto;padding:24px 26px 14px}
+ .msg{max-width:780px;margin:14px 0;font-size:14.5px;line-height:1.7}
  .msg.user{margin-left:auto}
- .msg .who{color:var(--faint);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
- .msg.user .who{color:var(--faint)}
+ .msg .who{color:var(--faint);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
  .msg.bot .who{color:var(--accent)}
  .msg.user .body{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:11px 15px}
- .msg.bot pre,.msg.bot .trace{font-family:var(--mono);font-size:13px;color:var(--muted)}
- .trace{display:block;margin:3px 0}
+ .msg.user .body img.thumb{max-width:180px;max-height:130px;border-radius:6px;margin-top:6px}
+ .msg.bot .body p{margin:6px 0}
+ .msg.bot .body h1,.msg.bot .body h2,.msg.bot .body h3{margin:10px 0 6px;line-height:1.4}
+ .msg.bot .body h1{font-size:18px} .msg.bot .body h2{font-size:16px} .msg.bot .body h3{font-size:15px}
+ .msg.bot .body ul,.msg.bot .body ol{margin:6px 0;padding-left:22px}
+ .msg.bot .body li{margin:2px 0}
+ .msg.bot .body code{background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:12.5px}
+ .msg.bot .body pre{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 13px;overflow-x:auto;font-family:var(--mono);font-size:12.5px}
+ .msg.bot .body pre code{border:none;background:none;padding:0}
+ .msg.bot .body blockquote{border-left:2px solid var(--accent);margin:8px 0;padding:2px 12px;color:var(--muted)}
+ .msg.bot .body hr{border:none;border-top:1px solid var(--line);margin:12px 0}
+ .msg.bot .body img.chart{max-width:480px;border-radius:8px;margin-top:10px;border:1px solid var(--line);display:block}
+ .msg.bot table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13.5px}
+ .msg.bot th,.msg.bot td{border:1px solid var(--line);padding:7px 11px;text-align:left}
+ .msg.bot th{background:var(--panel-2);color:var(--muted);font-weight:500}
+ .msg.bot td{font-family:var(--mono)} .msg.bot td:first-child{font-family:var(--sans)}
+ .trace{display:block;font-family:var(--mono);font-size:12.5px;color:var(--muted);margin:2px 0}
  .trace .t-ag{color:var(--accent)} .trace .t-res{color:var(--ok)} .trace .t-err{color:var(--warn)}
- table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13.5px}
- th,td{border:1px solid var(--line);padding:7px 11px;text-align:left}
- th{background:var(--panel-2);color:var(--muted);font-family:var(--mono);font-size:12px;font-weight:500}
- td{font-family:var(--mono)} td:first-child{font-family:var(--sans)}
- img{max-width:420px;border-radius:8px;margin-top:10px;border:1px solid var(--line)}
  .welcome{border-left:2px solid var(--accent);padding:4px 0 4px 18px;color:var(--muted);font-size:14px;line-height:1.9;max-width:720px}
  .welcome b{color:var(--text)}
- footer{border-top:1px solid var(--line);padding:16px 26px 22px;flex-shrink:0}
+ footer{border-top:1px solid var(--line);padding:16px 26px 20px;flex-shrink:0}
  .composer{display:flex;gap:10px;align-items:center}
  #q{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:13px 16px;color:var(--text);font-size:14.5px}
  #q:focus{outline:none;border-color:var(--accent)}
  .btn{height:46px;padding:0 22px;border:none;border-radius:8px;background:var(--accent);color:#06131c;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
  .btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--muted)}
  .btn:hover{filter:brightness(1.08)}
- #preview{max-height:90px;border-radius:8px;border:1px dashed var(--line);margin-bottom:10px;display:none}
  .hint{color:var(--faint);font-size:12.5px;margin-top:10px;font-family:var(--mono)}
  #file{display:none}
 </style>
@@ -65,67 +73,140 @@
   </div>
 </main>
 <footer>
-  <img id="preview" alt="preview">
   <div class="composer">
     <input id="q" placeholder="描述你的需求，或点 [上传] 附上一张单据图片" autocomplete="off">
     <button class="btn ghost" onclick="document.getElementById('file').click()">上传</button>
-    <button class="btn" onclick="send()">发送</button>
+    <button class="btn" onclick="sendText()">发送</button>
     <input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" onchange="onPick(event)">
   </div>
-  <div class="hint">// 识别后输入 确认 才计入统计 · 工具调用过程将实时展示</div>
+  <div class="hint">// 选图后自动发出识别 · 输入 确认 计入统计 · 图表直接显示在对话里</div>
 </footer>
 <script>
-let history=[], pickedFile=null, busy=false;
-function onPick(e){ const f=e.target.files[0]; if(!f)return; pickedFile=f; const p=document.getElementById('preview'); p.src=URL.createObjectURL(f); p.style.display='block'; }
-function addMsg(who,text){ const d=document.createElement('div'); d.className='msg '+who;
- d.innerHTML='<div class="who">'+(who==='user'?'你':'Agent')+'</div><div class="body">'+text+'</div>';
+let history=[], busy=false;
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function scroll(){ const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
+function addUserText(text){ return addMsg('user','<div class="body">'+esc(text)+'</div>'); }
+function addUserImg(name, dataUrl){ return addMsg('user','<div class="body">[图片] '+esc(name)+'<br><img class="thumb" src="'+dataUrl+'"></div>'); }
+function addMsg(who, inner){ const d=document.createElement('div'); d.className='msg '+who;
+ d.innerHTML='<div class="who">'+(who==='user'?'你':'Agent')+'</div>'+inner;
  document.getElementById('messages').appendChild(d); scroll(); return d; }
 function addTrace(text,cls){ const d=document.createElement('span'); d.className='trace '+(cls||'');
  d.innerHTML=text; document.getElementById('messages').appendChild(d); scroll(); return d; }
-function scroll(){ const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
-async function send(){
- if(busy)return; const q=document.getElementById('q').value.trim();
- if(!q&&!pickedFile)return;
- if(q) addMsg('user',esc(q)); if(pickedFile) addMsg('user','[已附图片] '+esc(pickedFile.name));
- const panel=addMsg('bot','…'); busy=true;
- try{
-   let r;
-   if(pickedFile){ const fd=new FormData(); fd.append('file',pickedFile); if(q)fd.append('message',q);
-     r=await fetch('/api/agent/chat',{method:'POST',body:fd}); }
-   else{ r=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({message:q,history})}); }
-   if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.detail||r.status); }
-   const reader=r.body.getReader(), dec=new TextDecoder(); let acc='', ans='';
-   while(true){ const {value,done}=await reader.read(); if(done)break;
-     acc+=dec.decode(value,{stream:true}); const parts=acc.split('\n\n'); acc=parts.pop();
-     for(const part of parts){ if(!part.startsWith('data: '))continue; const ev=JSON.parse(part.slice(6));
-       if(ev.type==='intent'){ if(ev.intent&&ev.intent!=='chat') addTrace('→ intent: <span class="t-ag">'+esc(ev.intent)+'</span>'); }
-       else if(ev.type==='tool_call'){ addTrace('→ tool: <span class="t-ag">'+esc(ev.name)+'</span>('+esc(JSON.stringify(ev.args).slice(0,55))+')'); }
-       else if(ev.type==='tool_result'){ addTrace('&nbsp;&nbsp;↳ <span class="t-res">'+esc(String(ev.result).slice(0,110))+'</span>'); }
-       else if(ev.type==='answer'){ ans=ev.answer; }
-       else if(ev.type==='error'){ addTrace('⚠ <span class="t-err">'+esc(ev.message)+'</span>'); }
-     } }
-   renderAnswer(panel, ans);
-   history.push({role:'user',content:q||'[uploaded]'}); history.push({role:'assistant',content:ans});
-   history=history.slice(-20);
- }catch(e){ panel.querySelector('.body').textContent='⚠️ '+e.message; }
- finally{ busy=false; document.getElementById('q').value=''; pickedFile=null; document.getElementById('file').value=''; document.getElementById('preview').style.display='none'; }
- return false;
+
+function onPick(e){
+  const f=e.target.files[0]; if(!f||busy) return;
+  e.target.value='';
+  // 立即把图片作为一条用户消息加入聊天记录
+  const dataUrl=URL.createObjectURL(f);
+  addUserImg(f.name, dataUrl);
+  addTrace('📎 已收到图片，正在识别…');
+  runChat('', f, dataUrl);
 }
-function renderAnswer(panel,text){ panel.querySelector('.body').innerHTML = text? mdToHtml(text) : '（无内容）'; }
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function mdToHtml(md){
-  let h=esc(md);
-  h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  h=h.replace(/(?:^\|.+\|\s*\n\|[\s:|-]+\|\s*\n((?:\|.+\|\s*\n)*))/gm,function(mm){
-    const ls=mm.trim().split('\n'); const head=ls[0].split('|').map(s=>s.trim()).filter(Boolean);
-    const rows=ls.slice(2).map(l=>l.split('|').map(s=>s.trim()).filter(Boolean));
-    let t='<table><thead><tr>'+head.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>';
-    rows.forEach(r=>{t+='<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>';});
-    return t+'</tbody></table>';
-  });
-  h=h.replace(/\n+/g,'<br>');
-  return h;
+async function sendText(){
+  const q=document.getElementById('q').value.trim();
+  if(!q||busy) return;
+  document.getElementById('q').value='';
+  addUserText(q);
+  runChat(q, null, null);
+}
+async function runChat(text, file, dataUrl){
+  const panel=addMsg('bot','<div class="body">…</div>');
+  busy=true;
+  try{
+    let r;
+    if(file){ const fd=new FormData(); fd.append('file',file); if(text)fd.append('message',text);
+      r=await fetch('/api/agent/chat',{method:'POST',body:fd}); }
+    else{ r=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,history})}); }
+    if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.detail||r.status); }
+    const reader=r.body.getReader(), dec=new TextDecoder(); let acc='', ans='';
+    while(true){ const {value,done}=await reader.read(); if(done)break;
+      acc+=dec.decode(value,{stream:true}); const parts=acc.split('\n\n'); acc=parts.pop();
+      for(const part of parts){ if(!part.startsWith('data: '))continue; const ev=JSON.parse(part.slice(6));
+        if(ev.type==='intent'){ if(ev.intent&&ev.intent!=='chat') addTrace('→ intent: <span class="t-ag">'+esc(ev.intent)+'</span>'); }
+        else if(ev.type==='tool_call'){ addTrace('→ tool: <span class="t-ag">'+esc(ev.name)+'</span>('+esc(JSON.stringify(ev.args).slice(0,60))+')'); }
+        else if(ev.type==='tool_result'){ renderToolResult(ev.name, ev.result); }
+        else if(ev.type==='answer'){ ans=ev.answer; }
+        else if(ev.type==='error'){ addTrace('⚠ <span class="t-err">'+esc(ev.message)+'</span>'); }
+      } }
+    // 渲染最终回答
+    panel.querySelector('.body').innerHTML = ans ? renderMd(ans) : '（无内容）';
+    // 若回答里带图表路径也补图
+    attachCharts(panel.querySelector('.body'));
+    history.push({role:'user',content:text||'[uploaded image]'});
+    history.push({role:'assistant',content:ans||''});
+    history=history.slice(-20);
+  }catch(err){
+    panel.querySelector('.body').textContent='⚠️ '+err.message;
+  }finally{ busy=false; if(dataUrl) URL.revokeObjectURL(dataUrl); }
+}
+function renderToolResult(name, result){
+  const s=String(result).slice(0,260);
+  addTrace('&nbsp;&nbsp;↳ <span class="t-res">'+esc(s)+'</span>');
+  // 若工具结果是图表生成, 提取 charts 路径并显示图片
+  const m=String(result).match(/(?:charts[\\/])([\w\-]+\.png)/i);
+  if(m && name==='plot_chart'){ addMsg('bot','<div class="body"><img class="chart" src="/charts/'+m[1]+'" alt="chart"></div>'); }
+}
+function attachCharts(bodyEl){
+  // 扫描 body 里出现的 /charts/xxx.png 文本, 追加为图片
+  const html=bodyEl.innerHTML;
+  const re=/\/charts\/([\w\-]+\.png)/g; let m, added=false;
+  while((m=re.exec(html))!==null){ const img=document.createElement('img'); img.className='chart'; img.src='/charts/'+m[1]; bodyEl.appendChild(img); added=true; }
+}
+// ---- 增强 markdown 渲染(代码块/列表/粗体/斜体/行内码/表格) ----
+function inlineMd(t){
+  return t.replace(/`([^`]+?)`/g,'<code>$1</code>')
+          .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+          .replace(/\*([^*]+)\*/g,'<em>$1</em>')
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" style="color:var(--accent)">$1</a>');
+}
+function renderMd(md){
+  // 1) 先提取代码块占位, 避免内部被当 md
+  const blocks=[];
+  let s=md.replace(/```[\w]*\n?([\s\S]*?)```/g, function(_,code){ blocks.push(code.replace(/\n$/,'')); return '\u0000C'+(blocks.length-1)+'\u0000'; });
+  // 2) 按空行拆块; 每个块内先识别 表格/标题/列表/引用/分隔线, 否则作段落
+  const parts=s.split(/\n{2,}/);
+  const out=[];
+  for(let block of parts){
+    const lines=block.split('\n').filter(l=>l.trim()!=='');
+    if(!lines.length) continue;
+    // 表格
+    if(lines[0].trim().startsWith('|') && lines[1] && /^\|?[\s:\-|]+\|?$/.test(lines[1].trim())){
+      const head=lines[0].split('|').map(x=>x.trim()).filter(Boolean);
+      const body=lines.slice(2);
+      let t='<table><thead><tr>'+head.map(c=>'<th>'+inlineMd(c)+'</th>').join('')+'</tr></thead><tbody>';
+      body.forEach(l=>{ const cells=l.split('|').map(x=>x.trim()).filter(Boolean);
+        t+='<tr>'+cells.map(c=>'<td>'+inlineMd(c)+'</td>').join('')+'</tr>'; });
+      out.push(t+'</tbody></table>'); continue;
+    }
+    // 标题
+    const hm=lines[0].match(/^(#{1,4})\s+(.*)$/);
+    if(hm && lines.length===1){ const lvl=hm[1].length; out.push('<h'+lvl+'>'+inlineMd(hm[2])+'</h'+lvl+'>'); continue; }
+    // 无序/有序列表(连续)
+    if(/^[-*]\s+/.test(lines[0].trim()) || /^\d+[.)]\s+/.test(lines[0].trim())){
+      const ordered=/^\d+[.)]\s+/.test(lines[0].trim());
+      const tag=ordered?'ol':'ul';
+      const items=lines.map(l=>l.replace(/^(\d+[.)]|[-*])\s+/,''));
+      out.push('<'+tag+'>'+items.map(i=>'<li>'+inlineMd(i)+'</li>').join('')+'</'+tag+'>'); continue;
+    }
+    // 引用
+    if(lines.every(l=>l.trim().startsWith('>'))){
+      out.push('<blockquote>'+lines.map(l=>inlineMd(l.trim().replace(/^>\s?/,''))).join('<br>')+'</blockquote>'); continue;
+    }
+    // 分隔线
+    if(/^[-*_]{3,}$/.test(lines[0].trim()) && lines.length===1){ out.push('<hr>'); continue; }
+    // 纯代码块占位块(还原后不再包 p)
+    if(lines.length===1 && /^\u0000C\d+\u0000$/.test(lines[0].trim())){
+      out.push(lines[0].trim()); continue;
+    }
+    // 段落(多行合并)
+    const para=lines.map(l=>inlineMd(l)).join('<br>');
+    out.push('<p>'+para+'</p>');
+  }
+  // 3) 还原代码块
+  let html=out.join('\n');
+  html=html.replace(/\u0000C(\d+)\u0000/g, function(_,i){ return '<pre><code>'+esc(blocks[Number(i)])+'</code></pre>'; });
+  return html;
 }
 </script>
 </body>

@@ -64,6 +64,23 @@ def build_agent() -> AgentExecutor:
     return AgentExecutor(agent=agent, tools=tools, verbose=False, max_iterations=8)
 
 
+# 流式事件版的系统提示(强化工具路由, 尤其"画图→plot_chart")
+EVENTS_SYSTEM_PROMPT = """你是一个企业文档处理智能体。根据用户意图自主选择工具:
+
+1. 用户提供图片或要"识别/提取" → ocr_recognize(image_path)。识别结果入库(待确认)。
+2. 用户要"查询/统计/有哪些/买了什么/金额" → rag_query(明细) 或 rag_summarize(聚合)。
+3. 用户要"画图/图表/柱状/饼图/可视化/plot" → 必须调用 plot_chart(group_by, chart_type),
+   生成图表文件并告知用户。
+4. 用户要"确认/修改/核对"识别数据 → correct_list_docs / correct_show_rows /
+   correct_update_row / correct_confirm。
+5. 若用户直接给数据询问统计且画图, 先 rag_summarize 再 plot_chart。
+
+规则:
+- 有确认(confirmed)数据才统计; 未确认时说明"待确认草稿"。
+- 不要编造; 用中文回答, 简洁结构化。回答中包含统计结论与来源。
+"""
+
+
 def ask(question: str, history: list[dict[str, Any]] | None = None) -> str:
     """执行一轮问答, 返回最终回答文本。"""
     executor = build_agent()
@@ -158,7 +175,7 @@ def run_agent_events(
     image_path: str | None = None,
 ):
     """流式事件生成器(供深色聊天界面)。事件: intent/tool_call/tool_result/answer/error。"""
-    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
     llm = get_llm()
     llm_tools = llm.bind_tools(_TOOLS)
@@ -166,7 +183,7 @@ def run_agent_events(
     content = user_input
     if image_path:
         content = f"{content}\n[已上传图片, 路径: {image_path}]（这是销售单据，请识别并入库）"
-    messages: list[Any] = []
+    messages: list[Any] = [SystemMessage(content=EVENTS_SYSTEM_PROMPT)]
     if history:
         for m in history[-10:]:
             role = m.get("role")
