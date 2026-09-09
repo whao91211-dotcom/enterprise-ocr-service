@@ -206,3 +206,95 @@ def all_docs_with_stats() -> list[dict[str, Any]]:
         return [dict(r) for r in conn.execute(sql).fetchall()]
     finally:
         conn.close()
+
+
+# ---------- SQL 直查(替代全表读入内存) ----------
+
+
+def _where_params(keyword: str | None, year: str | None) -> tuple[str, list[Any]]:
+    """构造 confirmed 过滤条件 (SQL 片段, 参数)。date 格式 'YYYY年MM月DD日'。"""
+    conds = ["r.status='confirmed'"]
+    params: list[Any] = []
+    if keyword:
+        kw = f"%{keyword}%"
+        conds.append("(r.item LIKE ? OR r.desc_ LIKE ? OR r.from_ LIKE ? OR d.file_name LIKE ?)")
+        params += [kw, kw, kw, kw]
+    if year:
+        # 兼容 '2024' 或 '2024年' 输入, 匹配 date 列前 4 位
+        y = str(year).strip().replace("年", "")
+        if y.isdigit():
+            conds.append("substr(r.date_, 1, 4) = ?")
+            params.append(y[:4])
+    return " AND ".join(conds), params
+
+
+def search_confirmed(
+    keyword: str | None = None,
+    year: str | None = None,
+    top_k: int = 20,
+) -> list[dict[str, Any]]:
+    """SQL 检索已确认行(带关键词/年份过滤, LIMIT 截断)。供 rag_query 使用。"""
+    conn = get_connection()
+    try:
+        where, params = _where_params(keyword, year)
+        sql = (
+            f"SELECT r.*, d.file_name FROM ocr_rows r "
+            f"JOIN documents d ON d.id = r.doc_id WHERE {where} "
+            "ORDER BY r.date_ DESC, r.id DESC LIMIT ?"
+        )
+        cur = conn.execute(sql, params + [top_k])
+        return [_user_row(dict(r)) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def summarize_confirmed(
+    group_by: str = "item",
+    keyword: str | None = None,
+    year: str | None = None,
+) -> list[dict[str, Any]]:
+    """SQL 聚合已确认行(数量/金额合计), 供 rag_summarize / plot 使用。
+
+    group_by ∈ item(项目) / desc(顾客公司) / date(发注日)。
+    金额按文本直接 SUM(为展示用, 数值列清洗过)。返回 [{group, amount, total, rows}]。
+    """
+    col = {"item": "r.item", "desc": "r.desc_", "date": "r.date_"}.get(group_by, "r.item")
+    label = {"item": "item", "desc": "desc", "date": "date"}.get(group_by, "item")
+    where, params = _where_params(keyword, year)
+    conn = get_connection()
+    try:
+        sql = (
+            f"SELECT {col} AS gkey, "
+            "COUNT(*) AS row_cnt, "
+            "SUM(CAST(REPLACE(REPLACE(r.amount,',',''),'¥','') AS REAL)) AS qty, "
+            "SUM(CAST(REPLACE(REPLACE(r.sum_,',',''),'¥','') AS REAL)) AS total "
+            f"FROM ocr_rows r JOIN documents d ON d.id = r.doc_id WHERE {where} "
+            f"GROUP BY {col} ORDER BY total DESC"
+        )
+        cur = conn.execute(sql, params)
+        out = []
+        for row in cur.fetchall():
+            out.append({
+                "group": row["gkey"],
+                "label": label,
+                "rows": row["row_cnt"],
+                "amount": round(row["qty"] or 0, 2),
+                "total": round(row["total"] or 0, 2),
+            })
+        return out
+    finally:
+        conn.close()
+
+
+def confirmed_count(keyword: str | None = None, year: str | None = None) -> int:
+    """SQL 计数已确认行(过滤后), 供 rag_summarize 汇报命中量。"""
+    conn = get_connection()
+    try:
+        where, params = _where_params(keyword, year)
+        n = conn.execute(
+            f"SELECT COUNT(*) c FROM ocr_rows r JOIN documents d ON d.id=r.doc_id "
+            f"WHERE {where}", params
+        ).fetchone()["c"]
+        return int(n)
+    finally:
+        conn.close()

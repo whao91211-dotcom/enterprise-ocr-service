@@ -1,4 +1,4 @@
-﻿"""Agent 聊天流式端点(SSE): 供深色工业风界面调用。
+"""Agent 聊天流式端点(SSE): 供深色工业风界面调用。
 
 POST /api/agent/chat   JSON: {message, history} 或 multipart(file图片)
 返回 SSE 事件流: intent/llm_text/tool_call/tool_result/answer/error

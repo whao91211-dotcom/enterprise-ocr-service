@@ -1,100 +1,88 @@
-"""Tool3: RAG —— 已确认数据的检索与统计。
+"""Tool3: 检索统计 —— 关系型数据库(SQLite) SQL 直查, 替代全表读入内存。
 
-数据库已存人工确认(confirmed)的准确行。此 Tool 让 Agent 能:
-  - rag_query(query, top_k): 关键词检索确认行(按商品/顾客公司/日期), 返回明细
-  - rag_summarize(group_by, filter): 聚合统计(数量/金额小计), 供"统计/画图"使用
-避免把全部行喂给 DeepSeek(省 token、结果准)。
+已确认(confirmed)数据在 SQLite, 直接 WHERE/GROUP BY/SUM 查询:
+  rag_query(query, year, top_k)     按关键词+年份过滤明细
+  rag_summarize(group_by, keyword, year)  聚合统计(数量/金额)
+关键词/年份在 SQL 层过滤, 只把聚合结果喂给 LLM —— 精确且省 token。
 """
 
 from __future__ import annotations
 
 import json
-from collections import defaultdict
 from typing import Any
 
 from langchain_core.tools import tool
 
 from db import crud
 
+_SELECTABLE = {"item", "desc", "date"}
+
 
 def _fmt_row(r: dict[str, Any]) -> str:
     return (
-        f"{r['desc']} | {r['date']} | 源:{r.get('from','')} | {r['item']}×{r['amount']} "
-        f"| 单价{r['price']} 税{r['tax']} 金额{r['sum']} (图:{r.get('file_name','')})"
+        f"{r.get('desc','')} | {r.get('date','')} | 源:{r.get('from','')} | {r.get('item','')}×"
+        f"{r.get('amount','')} | 单价{r.get('price','')} 税{r.get('tax','')} "
+        f"金额{r.get('sum','')} (图:{r.get('file_name','')})"
     )
 
 
 @tool
-def rag_query(query: str, top_k: int = 8) -> str:
-    """在已人工确认的销售数据中检索记录。
+def rag_query(query: str = "", year: str = "", top_k: int = 20) -> str:
+    """在已确认(confirmed)销售数据中按关键词和/或年份查明细。
 
     Args:
-        query: 检索关键词, 支持商品名/公司名/年份等, 如 "掃除機" 或 "甲公司 2024"。
-        top_k: 最多返回条数(默认8)。
+        query: 关键词(可空), 匹配 商品名/顾客公司/源公司/文件名, 如 "掃除機"。
+        year: 年份(可空), 如 "2024" 或 "2024年", 匹配发注日的年份。
+        top_k: 最多返回条数(默认20)。
     """
-    # 简单关键词过滤: 将 query 拆词, 命中 item/desc 含任一词的行
-    import re
-
-    words = [w for w in re.split(r"[\s,，、]+", query) if w]
-    if not words:
-        return "（查询为空）"
-    rows = crud.confirmed_rows()
-    matched: list[dict[str, Any]] = []
+    rows = crud.search_confirmed(keyword=query or None, year=year or None, top_k=top_k)
+    if not rows:
+        where = []
+        if query:
+            where.append(f"关键词 '{query}'")
+        if year:
+            where.append(f"年份 {year}")
+        return f"（未检索到匹配的已确认数据{'[' + '、'.join(where) + ']' if where else ''}）"
+    lines = [f"检索到 {len(rows)} 条记录" +
+             (f"(关键词:{query}" + (f", 年份:{year}" if year else "") + ")" if query or year else "")]
     for r in rows:
-        hay = " ".join(
-            str(r.get(k, "")) for k in ("item", "desc", "date", "from", "file_name")
-        ).lower()
-        if any(w.lower() in hay for w in words):
-            matched.append(r)
-    if not matched:
-        return "（未检索到匹配的已确认数据）"
-    lines = [f"检索到 {len(matched)} 条记录(关键词: {', '.join(words)}):"]
-    for r in matched[:top_k]:
         lines.append("  • " + _fmt_row(r))
-    if len(matched) > top_k:
-        lines.append(f"  … 共 {len(matched)} 条, 仅显示前 {top_k}")
     return "\n".join(lines)
 
 
 @tool
-def rag_summarize(group_by: str = "item", filter_query: str = "") -> str:
-    """统计已确认数据的聚合结果(数量合计/金额合计), 供画图或回答汇总问题。
+def rag_summarize(group_by: str = "item", keyword: str = "", year: str = "") -> str:
+    """统计已确认(confirmed)销售数据的聚合结果(数量合计/金额合计)。
 
     Args:
-        group_by: 分组维度: item(商品) 或 desc(顾客公司) 或 date(发注日)。
-        filter_query: 可选过滤关键词(如商品名/公司名), 空=全部。
+        group_by: 分组维度: item(按商品) / desc(按顾客公司) / date(按发注日)。
+        keyword: 可选过滤关键词(商品名/公司名), 空=不限制。
+        year: 可选年份过滤, 如 "2024" 或 "2024年"。
     """
-    rows = crud.confirmed_rows()
-    if filter_query:
-        fq = filter_query.lower()
-        rows = [r for r in rows if fq in " ".join(str(r.get(k, "")) for k in ("item", "desc")).lower()]
-    if not rows:
-        return "（没有符合条件的已确认数据）"
-
-    key = {"item": "item", "desc": "desc", "date": "date"}.get(group_by, "item")
-    groups: dict[str, dict[str, float]] = defaultdict(
-        lambda: {"amount": 0.0, "sum": 0.0, "rows": 0}
+    if group_by not in _SELECTABLE:
+        return f"group_by 仅支持: {sorted(_SELECTABLE)}（收到 {group_by}）"
+    groups = crud.summarize_confirmed(
+        group_by=group_by, keyword=keyword or None, year=year or None
     )
-
-    def _num(v: str) -> float:
-        try:
-            return float(str(v).replace(",", "").replace("¥", ""))
-        except ValueError:
-            return 0.0
-
-    for r in rows:
-        g = str(r.get(key, "") or "(空)")
-        groups[g]["amount"] += _num(r.get("amount"))
-        groups[g]["sum"] += _num(r.get("sum"))
-        groups[g]["rows"] += 1
-
-    lines = [f"统计(按 {key}, {len(rows)} 条确认行):"]
-    for g, s in sorted(groups.items(), key=lambda kv: -kv[1]["sum"]):
+    total = crud.confirmed_count(keyword=keyword or None, year=year or None)
+    if not groups:
+        return "（没有符合条件的已确认数据）"
+    where = []
+    if keyword:
+        where.append(f"关键词 '{keyword}'")
+    if year:
+        where.append(f"年份 {year}")
+    head = f"统计(按 {group_by}{('，'+'、'.join(where)) if where else ''}, {total} 条确认行):"
+    lines = [head]
+    for g in groups:
         lines.append(
-            f"  • {g}: 数量 {s['amount']:g}, 金额 {s['sum']:.2f}, {s['rows']} 行"
+            f"  • {g['group']}: 数量 {g['amount']:g}, 金额 {g['total']:.2f}, {g['rows']} 行"
         )
-    lines.append(json.dumps(
-        {"group_by": key, "total_amount": sum(g["amount"] for g in groups.values()),
-         "total_sum": sum(g["sum"] for g in groups.values())}
-    ))
+    summary = {
+        "group_by": group_by,
+        "total_rows": total,
+        "total_amount": round(sum(g["amount"] for g in groups), 2),
+        "total_sum": round(sum(g["total"] for g in groups), 2),
+    }
+    lines.append(json.dumps(summary, ensure_ascii=False))
     return "\n".join(lines)
