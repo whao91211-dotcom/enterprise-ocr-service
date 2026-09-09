@@ -10,6 +10,7 @@ Tool 装配(可插拔):
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
@@ -80,3 +81,138 @@ def ask(question: str, history: list[dict[str, Any]] | None = None) -> str:
                 chat_history.append(AIMessage(content=content))
     result = executor.invoke({"input": question, "chat_history": chat_history})
     return str(result.get("output", ""))
+
+
+# ---------- 流式事件版(深色聊天界面用) ----------
+
+from langchain_core.tools import tool  # noqa: E402
+
+
+@tool
+def ocr_recognize_chat(image_path: str) -> str:
+    """识别一张销售单据/支票图片, 返回结构化 8 列并写入数据库(待确认)。
+
+    Args:
+        image_path: 图片文件路径(png/jpg/jpeg/webp/bmp)。
+    """
+
+    from db import crud
+    from tools.ocr_client import recognize
+
+    p = Path(image_path)
+    if not p.is_file():
+        return f"错误: 图片不存在: {image_path}"
+    ext = p.suffix.lstrip(".").lower() or "png"
+    data = p.read_bytes()
+    try:
+        result = recognize(data, ext)
+    except Exception as e:  # noqa: BLE001
+        return f"识别失败: {e}"
+    rows = result["rows"]
+    if not rows:
+        return f"识别到 0 行。原始返回: {result['raw'][:200]}"
+    file_name = p.name
+    doc_id = crud.upsert_document(file_name, None)
+    crud.delete_rows_by_doc(doc_id)
+    crud.insert_rows(doc_id, rows)
+    labels = {"desc": "顾客公司", "date": "发注日", "from": "源公司", "item": "项目",
+              "amount": "数量", "price": "单价", "tax": "税率", "sum": "金额"}
+    lines = [f"✅ 识别完成(doc#{doc_id}, {len(rows)} 行, 状态=待确认, {result['latency_ms']}ms)"]
+    for i, r in enumerate(rows, 1):
+        cells = "，".join(f"{labels[k]}{r.get(k,'')}" for k in crud.USER_FIELDS if r.get(k))
+        lines.append(f"{i}. {cells}")
+    return "\n".join(lines)
+
+
+_TOOLS = [
+    ocr_recognize_chat,
+    correct_list_docs,
+    correct_show_rows,
+    correct_update_row,
+    correct_confirm,
+    rag_query,
+    rag_summarize,
+    plot_chart,
+]
+_TOOL_BY_NAME = {t.name: t for t in _TOOLS}
+
+
+def _guess_intent(text: str) -> str:
+    import re
+
+    t = (text or "").lower()
+    if re.search(r"\.(png|jpe?g|webp|bmp)", t) or re.search(r"识别|提取|图里|图片|读一下", t):
+        return "ocr_recognize"
+    if re.search(r"画图|图表|柱状|饼图|可视化", t):
+        return "plot_chart"
+    if re.search(r"查询|统计|多少|金额|数量|有哪些|买了|汇总|明细", t):
+        return "rag_query"
+    if re.search(r"确认|修改|修正|核对", t):
+        return "correct"
+    return "chat"
+
+
+def run_agent_events(
+    user_input: str,
+    history: list[dict[str, Any]] | None = None,
+    image_path: str | None = None,
+):
+    """流式事件生成器(供深色聊天界面)。事件: intent/tool_call/tool_result/answer/error。"""
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    llm = get_llm()
+    llm_tools = llm.bind_tools(_TOOLS)
+
+    content = user_input
+    if image_path:
+        content = f"{content}\n[已上传图片, 路径: {image_path}]（这是销售单据，请识别并入库）"
+    messages: list[Any] = []
+    if history:
+        for m in history[-10:]:
+            role = m.get("role")
+            c = m.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=c))
+            elif role == "assistant":
+                messages.append(AIMessage(content=c))
+    messages.append(HumanMessage(content=content))
+
+    yield {"type": "intent", "intent": _guess_intent(user_input)}
+
+    for _step in range(8):
+        resp = llm_tools.invoke(messages)
+        content = getattr(resp, "content", "") or ""
+        tool_calls = getattr(resp, "tool_calls", None) or []
+        if not tool_calls:
+            yield {"type": "answer", "answer": content or "（模型未返回内容）"}
+            return
+        if content:
+            yield {"type": "llm_text", "text": content}
+        # assistant 消息带 tool_calls 存入, 供 tool 回填保持关联
+        to_msg = getattr(resp, "to_message", None)
+        assistant = to_msg() if callable(to_msg) else None
+        if assistant is None:
+            assistant = AIMessage(
+                content=content or "",
+                tool_calls=[{"name": tc.get("name", ""), "args": tc.get("args", {}),
+                             "id": tc.get("id", "")} for tc in tool_calls],
+            )
+        messages.append(assistant)
+        for tc in tool_calls:
+            yield {"type": "tool_call", "name": tc.get("name", ""), "args": tc.get("args", {})}
+            result = _run_tool_call(tc)
+            yield {"type": "tool_result", "name": tc.get("name", ""), "result": result[:2000]}
+            messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
+    yield {"type": "answer", "answer": "（工具调用次数过多，请缩小问题范围）"}
+
+
+def _run_tool_call(tc: dict[str, Any]) -> str:
+    name = tc.get("name", "")
+    args = tc.get("args") or {}
+    fn = _TOOL_BY_NAME.get(name)
+    if fn is None:
+        return f"未知工具: {name}"
+    try:
+        return str(fn.invoke(args if isinstance(args, dict) else {"arg": args}))
+    except Exception as e:  # noqa: BLE001
+        return f"工具执行出错: {e}"

@@ -28,12 +28,26 @@ from pydantic import BaseModel, Field
 from db import crud
 from db.database import init_db
 from tools.ocr_client import OcrError, recognize
+from web import agent_chat
 
 ROOT = Path(__file__).resolve().parents[1]
 UPLOAD_DIR = ROOT / "data" / "uploads"
 CHART_DIR = ROOT / "charts"
 
 app = FastAPI(title="企业文档处理智能体 v2", version="2.0.0")
+
+# Agent 聊天流式端到端(自主多 Tool)
+app.include_router(agent_chat.router)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    """主界面: 深色工业风 Agent 聊天页。"""
+    p = ROOT / "web" / "agentchat.html"
+    if not p.is_file():
+        return "AgentChat 页面未部署"
+    return p.read_text(encoding="utf-8")
+
 
 ALLOWED_EXT = {"png", "jpg", "jpeg", "webp", "bmp"}
 
@@ -69,127 +83,7 @@ class ChartIn(BaseModel):
     filter: str = ""
 
 
-# ---------- 页面 ----------
 
-_PAGE = """<!doctype html>
-<html lang="zh"><head><meta charset="utf-8">
-<title>企业文档处理智能体 v2</title>
-<style>
- body{font-family:system-ui;max-width:960px;margin:20px auto;padding:0 16px;background:#f6f8fa;color:#222}
- h1{font-size:22px} h2{font-size:16px;margin:14px 0 6px}
- .card{background:#fff;border:1px solid #e0e4e8;border-radius:10px;padding:14px;margin:10px 0}
- .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
- button{padding:8px 14px;border:none;border-radius:8px;background:#0b57d0;color:#fff;cursor:pointer}
- button.gray{background:#eee;color:#222} input,select{padding:7px;border:1px solid #ccc;border-radius:6px}
- table{border-collapse:collapse;width:100%;font-size:13px}
- th,td{border:1px solid #e2e5e9;padding:4px 6px;text-align:left}
- th{background:#f0f2f5} td input{width:90px;padding:2px}
- .ok{color:#1a7f37} .warn{color:#b35900} .msg{white-space:pre-wrap;line-height:1.5;font-size:14px}
- #chat{height:220px;overflow:auto;border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff}
- img{max-width:220px;border:1px solid #ddd;border-radius:6px}
-</style></head><body>
-<h1>📄 企业文档处理智能体 v2</h1>
-
-<div class="card">
- <h2>1. 上传单据图片 → OCR 识别</h2>
- <div class="row">
-  <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/bmp">
-  <button onclick="upload()">识别此图</button>
-  <span id="upstat"></span>
- </div>
- <div id="ocrmsg" class="msg"></div>
-</div>
-
-<div class="card">
- <h2>2. 识别数据核对 / 人工修改（Correct）</h2>
- <div class="row">
-  <button class="gray" onclick="loadDocs()">刷新单据列表</button>
-  <select id="docsel" onchange="loadDocRows()"></select>
-  <button onclick="confirmDoc()">✅ 确认此单据全部行</button>
- </div>
- <div style="overflow:auto;max-height:280px"><table id="rowtable"></table></div>
- <div id="cmsg" class="msg"></div>
-</div>
-
-<div class="card">
- <h2>3. 智能体问答（RAG / 画图）</h2>
- <div id="chat"></div>
- <div class="row" style="margin-top:6px">
-  <input id="q" style="flex:1" placeholder="例：统计每类商品的金额并画柱状图">
-  <button onclick="askAgent()">发送</button>
- </div>
-</div>
-
-<script>
-async function jpost(url, body){ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const j=await r.json(); if(!r.ok) throw new Error(j.detail||r.status); return j; }
-function setMsg(id,t){ const el=document.getElementById(id); el.textContent=t; }
-
-async function upload(){
- const f=document.getElementById('file').files[0]; if(!f) return;
- setMsg('upstat','上传中…'); setMsg('ocrmsg','');
- const fd=new FormData(); fd.append('file',f);
- const r=await fetch('/api/ocr',{method:'POST',body:fd}); const j=await r.json();
- if(!r.ok){ setMsg('ocrmsg','⚠️ '+j.detail); return; }
- let s='✅ '+j.summary;
- (j.rows||[]).forEach((row,i)=>{ s+='\\n'+(i+1)+'. '+(row.desc||'')+' '+(row.date||'')+' '+(row.from||'')+' '+row.item+' ×'+row.amount+' 单价'+row.price+' 金额'+row.sum; });
- setMsg('ocrmsg',s); setMsg('upstat','完成(入库待确认)'); loadDocs();
-}
-async function loadDocs(){
- const r=await fetch('/api/docs'); const j=await r.json();
- const sel=document.getElementById('docsel'); sel.innerHTML='';
- j.items.forEach(d=>{ const o=document.createElement('option'); o.value=d.file_name; o.textContent=`${d.file_name} (${d.row_count}行/确认${d.confirmed_count})`; sel.appendChild(o); });
- if(j.items.length) loadDocRows();
-}
-async function loadDocRows(){
- const name=document.getElementById('docsel').value; if(!name) return;
- const r=await fetch('/api/docs/'+encodeURIComponent(name)); const j=await r.json();
- const tb=document.getElementById('rowtable');
- let html='<tr><th>id</th><th>状态</th><th>顾客</th><th>日期</th><th>源公司</th><th>项目</th><th>数量</th><th>单价</th><th>税率</th><th>金额</th><th></th></tr>';
- (j.rows||[]).forEach(row=>{
-   html+=`<tr><td>${row.id}</td><td>${row.status==='confirmed'?'✅':'⏳'}</td>
-    <td><input id="f_${row.id}_desc" value="${row.desc||''}"></td>
-    <td><input id="f_${row.id}_date" value="${row.date||''}"></td>
-    <td><input id="f_${row.id}_from" value="${row.from||''}"></td>
-    <td><input id="f_${row.id}_item" value="${row.item||''}"></td>
-    <td><input id="f_${row.id}_amount" value="${row.amount||''}"></td>
-    <td><input id="f_${row.id}_price" value="${row.price||''}"></td>
-    <td><input id="f_${row.id}_tax" value="${row.tax||''}"></td>
-    <td><input id="f_${row.id}_sum" value="${row.sum||''}"></td>
-    <td><button class="gray" onclick="saveRow(${row.id})">保存</button></td></tr>`;
- });
- tb.innerHTML=html;
-}
-async function saveRow(id){
- const fields={}; ['desc','date','from','item','amount','price','tax','sum'].forEach(k=>{ const el=document.getElementById(`f_${id}_${k}`); if(el) fields[k]=el.value; });
- try{ const j=await jpost('/api/rows/'+id,{fields,reviewer:'manual'}); setMsg('cmsg','✅ 行已保存'); loadDocRows(); }
- catch(e){ setMsg('cmsg','⚠️ '+e.message); }
-}
-async function confirmDoc(){
- const name=document.getElementById('docsel').value; if(!name) return;
- try{ const j=await jpost('/api/confirm',{file_name:name,reviewer:'manual'}); setMsg('cmsg',j.message); loadDocs(); }
- catch(e){ setMsg('cmsg','⚠️ '+e.message); }
-}
-let history=[];
-async function askAgent(){
- const q=document.getElementById('q').value.trim(); if(!q) return;
- appendChat('🧑 '+q); document.getElementById('q').value='';
- appendChat('🤖 …');
- try{
-   const r=await fetch('/api/agent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q,history})});
-   const j=await r.json(); if(!r.ok) throw new Error(j.detail||r.status);
-   history=j.history;
-   const box=document.getElementById('chat'); box.lastChild.textContent='🤖 '+j.answer;
-   const fig=j.chart; if(fig){ const img=document.createElement('img'); img.src='/charts/'+fig; box.appendChild(img); }
- }catch(e){ const box=document.getElementById('chat'); box.lastChild.textContent='⚠️ '+e.message; }
-}
-function appendChat(t){ const d=document.createElement('div'); d.className='msg'; d.textContent=t; document.getElementById('chat').appendChild(d); }
-loadDocs();
-</script></body></html>"""
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index() -> str:
-    return _PAGE
 
 
 # ---------- OCR ----------
