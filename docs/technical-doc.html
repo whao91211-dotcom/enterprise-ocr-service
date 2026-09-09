@@ -1,0 +1,195 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>企业文档处理智能体 - 技术方案文档</title><style>
+@page { size: A4; margin: 16mm 14mm; }
+body { font-family: "Microsoft YaHei", "SimHei", sans-serif; font-size: 12px; line-height: 1.65; color: #1f2430; }
+h1 { font-size: 24px; border-bottom: 3px solid #0b57d0; padding-bottom: 6px; color: #0b57d0; }
+h2 { font-size: 18px; border-bottom: 1.5px solid #b9c6dd; padding-bottom: 4px; margin-top: 26px; color: #123; }
+h3 { font-size: 15px; margin-top: 18px; color: #234; }
+table { border-collapse: collapse; width: 100%; margin: 10px 0; page-break-inside: avoid; }
+th, td { border: 1px solid #c4cbd6; padding: 5px 8px; text-align: left; font-size: 11px; }
+th { background: #eef2f8; }
+pre { background: #f6f8fa; border: 1px solid #e1e5ea; border-radius: 6px; padding: 10px; font-size: 10.5px;
+      font-family: Consolas, "Courier New", monospace; overflow-wrap: break-word; white-space: pre-wrap; }
+code { font-family: Consolas, "Courier New", monospace; font-size: 10.5px; background: #f2f4f7; padding: 1px 4px; border-radius: 3px; }
+pre code { background: none; padding: 0; }
+blockquote { border-left: 4px solid #c9d4e8; margin: 8px 0; padding: 4px 12px; color: #445; background: #fafbfd; }
+hr { border: none; border-top: 1px solid #d5dbe4; margin: 18px 0; }
+ul, ol { margin: 6px 0 6px 0; padding-left: 22px; }
+li { margin: 2px 0; }
+strong { color: #10305c; }
+</style></head>
+<body><h1>企业文档处理智能体 — 技术方案文档</h1>
+
+<blockquote>版本：v2（Agent 架构） · 分支：<code>feat/agent-v2</code> · 状态：开发中（OCR 真实联调待 9052）<br>面向对象：团队同事 / 评审</blockquote>
+
+<hr>
+
+<h2>1. 项目目标</h2>
+
+<p>构建一个 <strong>企业单据处理智能体（Chatbot）</strong>，覆盖"识别 → 人工校验 → 入库 → 统计问答 → 可视化"完整链路：</p>
+
+<ul><li>用户上传<strong>支票/销售单据图片</strong>，系统自动结构化识别</li><li>识别结果<strong>人工可改</strong>（模型准确率 ~80%，Agent 需要 100% 准确数据）</li><li>多张图数据进库，供<strong>高效检索与统计</strong>（避免全量喂给大模型烧 token、效果差）</li><li>统计结果可<strong>绘制图表</strong></li><li>后续能力<strong>可插拔扩展</strong></li></ul>
+
+<h3>1.1 目标用户链路</h3>
+
+<pre><code>上传图片 → OCR识别 → 人工核对/修改 → 确认入库 → 提问统计 → 图表展示</code></pre>
+
+<hr>
+
+<h2>2. 总体架构</h2>
+
+<p><strong>核心思想：以 Agent 为中心（而非多个独立服务）。</strong> 用 LangChain 搭建 DeepSeek LLM 智能体， 为其"加装"一组 Tool，每个 Tool 补齐 DeepSeek / 基础模型的一项短板。</p>
+
+<pre><code>                          ┌──────────────────────────────┐
+                          │      Web 单页面界面 (FastAPI)    │
+                          │  上传 / 表格修改 / 问答 / 图表     │
+                          └──────────────┬───────────────┘
+                                         │
+                          ┌──────────────▼───────────────┐
+                          │   LangChain Agent (DeepSeek)  │
+                          │   function-calling 自动决策    │
+                          └───┬─────────┬─────────┬───────┘
+                              │         │         │
+        ┌─────────────────────▼──┐  ┌───▼─────┐  ┌▼──────────────┐
+        │ Tool1 OCR (InternVL)   │  │Tool2     │  │Tool3 RAG /    │
+        │ 9052 / internvl3       │  │Correct   │  │Tool4 Plot     │
+        └───────────┬────────────┘  └───┬─────┘  └───────────────┘
+                    │                    │
+              ┌─────▼─────────────────────▼─────┐
+              │   SQLite: data/agent.db          │
+              │   documents(图) + ocr_rows(行)    │
+              │   状态: pending / confirmed       │
+              └───────────────────────────────────┘</code></pre>
+
+<h3>2.1 为什么是 4 个 Tool（每个补一个短板）</h3>
+
+<table><thead><tr><th>Tool</th><th>短板</th><th>解决方案</th><th>关键技术</th></tr></thead><tbody><tr><td>**OCR**</td><td>DeepSeek 是"盲"的，无法看图</td><td>InternVL 微调模型识别图片</td><td>InternVL3 @ 9052（OpenAI 兼容接口）</td></tr><tr><td>**Correct**</td><td>OCR 准确率仅 ~80%，Agent 需要准确数据</td><td>界面上人工核对/修改识别结果</td><td>SQLite 行级状态机 + Web 表格编辑</td></tr><tr><td>**RAG**</td><td>多图全量喂 DeepSeek 费 token 且统计差</td><td>数据入库，按需检索/聚合</td><td>SQLite 过滤查询 + 统计聚合</td></tr><tr><td>**Plot**</td><td>统计数字不直观</td><td>绘制统计图</td><td>matplotlib → PNG</td></tr></tbody></table>
+
+<p>后续需要新能力（发票类目、合同、导出等）时，在 Agent 中<strong>注册新 Tool 即可扩展</strong>。</p>
+
+<hr>
+
+<h2>3. 模块设计</h2>
+
+<h3>3.1 目录结构</h3>
+
+<pre><code>enterprise_ocr_service/
+├── config.py               # .env 加载(OCR 端点 / DeepSeek key / 模型参数)
+├── agent/
+│   ├── llm.py              # DeepSeek LLM 封装(langchain-deepseek ChatDeepSeek)
+│   └── agent.py            # AgentExecutor + 8 个工具注册 + 对话编排
+├── tools/                  # 每个工具独立模块(可插拔)
+│   ├── ocr_client.py       # InternVL 客户端: 9052 调用 + CSV 解析(纯 httpx)
+│   ├── ocr_tool.py         # Tool1: 识别图片 → 入库待确认
+│   ├── correct_tool.py     # Tool2: 列单据/看行/改行/确认
+│   ├── rag_tool.py         # Tool3: 检索(rag_query) + 聚合(rag_summarize)
+│   └── plot_tool.py        # Tool4: 柱状/饼图 → charts/*.png
+├── db/
+│   ├── database.py         # SQLite 连接/初始化(标准库 sqlite3, WAL)
+│   ├── schema.py           # 建表 DDL
+│   └── crud.py             # 数据操作(用户友好键 desc/date/from/sum)
+├── web/
+│   └── main.py             # FastAPI 单页(上传/修改/问答/图表)
+├── run_web.py              # 启动入口 (127.0.0.1:8100)
+├── data/                   # agent.db + 上传图片(本地, gitignore)
+├── charts/                 # Plot tool 输出 PNG
+└── tests/test_agent_v2.py  # db + tools 单元测试</code></pre>
+
+<h3>3.2 数据模型（SQLite）</h3>
+
+<p><strong>documents</strong>（每张上传图片）：</p>
+
+<table><thead><tr><th>列</th><th>说明</th></tr></thead><tbody><tr><td>id</td><td>主键</td></tr><tr><td>file_name</td><td>源文件名（唯一，作为图级标识）</td></tr><tr><td>sha256</td><td>可选，用于去重</td></tr><tr><td>uploaded_at</td><td>上传时间</td></tr><tr><td>status</td><td>`recognition_pending` / `rows_inserted`</td></tr></tbody></table>
+
+<p><strong>ocr_rows</strong>（每张图识别出的行数据）：</p>
+
+<table><thead><tr><th>列</th><th>说明</th></tr></thead><tbody><tr><td>id</td><td>主键</td></tr><tr><td>doc_id</td><td>→ documents.id（外键，级联删除）</td></tr><tr><td>seq</td><td>行号</td></tr><tr><td>desc / date / from / item / amount / price / tax / sum</td><td>8 列识别字段</td></tr><tr><td>status</td><td>**pending（待确认）/ confirmed（已确认）**</td></tr><tr><td>modified_by / modified_at</td><td>人工修改留痕</td></tr></tbody></table>
+
+<blockquote>关键设计：<strong>只有 confirmed 的行才进入 RAG / 统计</strong>。Agent 回答时若数据未确认，<br>会如实说明是"待确认草稿"。人工确认前，识别错误不会污染统计结果。</blockquote>
+
+<h3>3.3 Tool1 — OCR（InternVL）</h3>
+
+<ul><li><strong>模型端点</strong>：<code>http://127.0.0.1:9052/v1/chat/completions</code>，<code>model=internvl3</code></li></ul>
+<p>（<code>/v1/models</code> 只显示 <code>gpt-3.5-turbo</code>，实际必须用 <code>internvl3</code>）</p>
+<ul><li><strong>Prompt</strong>（S1 真机实测固化）：使用<strong>中英语义引导</strong>而非纯英文 key ——</li></ul>
+<p>纯英文 <code>from</code> 会被模型错认成日期（实测输出幻觉日期）； 中英混写 <code>from(发货公司/源公司)</code> 后识别正确。</p>
+<ul><li><strong>输出</strong>：8 列 <code>desc,date,from,item,amount,price,tax,sum</code>（与训练标注一致）</li><li>识别结果直接写入 SQLite，状态 = <code>pending</code>；同图重复识别会先删旧行再插入（覆盖语义）</li></ul>
+
+<h3>3.4 Tool2 — Correct（人工修改）</h3>
+
+<p>提供 4 个子工具，Web 表格编辑与 Agent 共用同一数据层：</p>
+
+<ul><li><code>correct_list_docs</code> 列出所有单据及确认进度</li><li><code>correct_show_rows(file_name)</code> 查看某图识别行（含行 id 与状态）</li><li><code>correct_update_row(row_id, fields)</code> 修改单行字段（白名单校验）</li><li><code>correct_confirm(file_name, reviewer)</code> 确认整图全部行（进入统计口径）</li></ul>
+
+<h3>3.5 Tool3 — RAG（检索与统计）</h3>
+
+<ul><li><code>rag_query(query, top_k)</code>：对已确认行做关键词检索（商品/公司/日期/文件名），返回明细</li><li><code>rag_summarize(group_by, filter)</code>：按 item/desc/date 聚合（数量、金额小计），</li></ul>
+<p>供统计问答与画图复用</p>
+<ul><li>因为数据已入库并确认，Agent 只把<strong>命中结果</strong>喂给 DeepSeek —— 省 token 且结果可靠</li></ul>
+
+<h3>3.6 Tool4 — Plot（可视化）</h3>
+
+<ul><li><code>plot_chart(group_by, chart_type, filter)</code>：matplotlib 生成 PNG 到 <code>charts/</code></li><li>支持 bar（柱状）/ pie（饼图）；中文字体自动探测（SimHei / Microsoft YaHei）</li><li>Web 端通过 <code>/charts/{file}</code> 展示</li></ul>
+
+<h3>3.7 Agent 中枢</h3>
+
+<ul><li><strong>LLM</strong>：DeepSeek <code>deepseek-chat</code>（langchain-deepseek 官方接入）</li><li><strong>编排</strong>：<code>AgentExecutor + create_tool_calling_agent</code>（tool-calling 自动决策）</li><li><strong>系统提示</strong>：告知 Agent 何时用哪个 Tool、确认状态语义、禁止编造数据</li><li><strong>可扩展</strong>：新增能力 = 新增一个 <code>@tool</code> 函数并加入列表即可</li></ul>
+
+<hr>
+
+<h2>4. 关键技术结论（实测沉淀）</h2>
+
+<ol><li><strong>InternVL 输出契约 = 训练 8 列</strong>；prompt 需中英语义引导，纯英文 key 会把 <code>from</code> 认成日期</li><li><strong>识别数据必须人工确认后才进统计</strong>：模型有幻觉/重复行（如一张图 13 行明细实为 3 种商品），草稿不能直接用于统计</li><li><strong>单槽 llama.cpp 一次只处理一个请求</strong>：一张图约 20~60s，长 prompt 会卡服务（曾复现读超时）</li><li><strong>langchain 1.x 注意</strong>：<code>AgentExecutor</code> 在 <code>langchain_classic.agents</code>（<code>create_tool_calling_agent</code> 同处）；</li></ol>
+<p>纯 <code>langchain.agents</code> 走新 <code>create_agent</code> API</p>
+<ol><li><strong>matplotlib 中文</strong>需显式指定中文字体，否则图表乱码</li><li>本项目 PyPI 直连不通，统一用清华源 <code>-i https://pypi.tuna.tsinghua.edu.cn/simple</code></li></ol>
+
+<hr>
+
+<h2>5. 运行与联调</h2>
+
+<h3>5.1 依赖安装</h3>
+
+<pre><code>pip install -i https://pypi.tuna.tsinghua.edu.cn/simple langchain langchain-deepseek ^
+    langchain-classic fastapi uvicorn python-multipart httpx matplotlib</code></pre>
+
+<h3>5.2 环境变量（.env）</h3>
+
+<pre><code>OCR_BASE_URL=http://127.0.0.1:9052/v1
+OCR_MODEL=internvl3
+DEEPSEEK_API_KEY=sk-xxx          # platform.deepseek.com</code></pre>
+
+<h3>5.3 启动</h3>
+
+<pre><code># 1) 先确保 InternVL 9052 在线(隧道/服务)
+# 2) 启动 Web(单页集成了全部功能)
+python run_web.py                # http://127.0.0.1:8100</code></pre>
+
+<h3>5.4 API 一览（FastAPI，/docs 有 Swagger）</h3>
+
+<table><thead><tr><th>方法 &amp; 路径</th><th>用途</th></tr></thead><tbody><tr><td>POST `/api/ocr`</td><td>multipart 上传图片 → 识别 → 入库待确认</td></tr><tr><td>GET `/api/docs`</td><td>单据列表（行数/确认状态）</td></tr><tr><td>GET `/api/docs/{name}`</td><td>某图识别行</td></tr><tr><td>POST `/api/rows/{id}`</td><td>人工修改某行</td></tr><tr><td>POST `/api/confirm`</td><td>确认某图全部行</td></tr><tr><td>POST `/api/agent`</td><td>智能体问答（会按需调 Tool）</td></tr><tr><td>POST `/api/chart`</td><td>画统计图</td></tr><tr><td>GET `/charts/{file}`</td><td>图表文件</td></tr><tr><td>GET `/api/stats`</td><td>总览</td></tr></tbody></table>
+
+<hr>
+
+<h2>6. 测试与质量</h2>
+
+<ul><li>单元测试（<code>tests/test_agent_v2.py</code>）：db CRUD、Correct/RAG Tool 逻辑</li></ul>
+<p>（不依赖真实模型/网络，可离线跑）</p>
+<ul><li><code>ruff</code> 静态检查：通过</li></ul>
+
+<pre><code>pytest tests -q
+ruff check db agent tools web config.py run_web.py</code></pre>
+
+<hr>
+
+<h2>7. 当前进度与待办</h2>
+
+<table><thead><tr><th>项</th><th>状态</th></tr></thead><tbody><tr><td>SQLite 数据层（doc + rows / 状态机）</td><td>✅</td></tr><tr><td>Tool1 OCR（客户端 + 入库）</td><td>✅ 代码就绪，**待 9052 真实联调**</td></tr><tr><td>Tool2 Correct</td><td>✅</td></tr><tr><td>Tool3 RAG</td><td>✅</td></tr><tr><td>Tool4 Plot</td><td>✅</td></tr><tr><td>Agent 中枢（8 工具）</td><td>✅</td></tr><tr><td>Web 单页面</td><td>✅</td></tr><tr><td>端到端真实联调（上传→改→确认→问答→图）</td><td>⏳ 待 9052 在线</td></tr><tr><td>发票等第二类目扩展</td><td>⬜ 规划中（数据/模型未提供）</td></tr></tbody></table>
+
+<hr>
+
+<h2>8. 版本演进（git）</h2>
+
+<pre><code>master       旧版: 双 FastAPI 服务(8000 OCR + 8100 rag/CSV)  ← 已归档, 保留
+feat/agent-v2 新版: Agent 架构(本文档描述) ← 当前开发分支</code></pre>
+
+<p>如需查看旧版实现细节，切到 <code>master</code> 分支阅读。</p></body></html>
