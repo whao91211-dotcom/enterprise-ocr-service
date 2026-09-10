@@ -24,3 +24,7 @@ htmlcov/
 .idea/
 .vscode/
 *.swp
+
+# 报表输出
+reports/
+!reports/.gitkeep

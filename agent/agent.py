@@ -26,6 +26,7 @@ from tools.correct_tool import (
 from tools.ocr_tool import ocr_recognize
 from tools.plot_tool import plot_chart
 from tools.rag_tool import rag_query, rag_summarize
+from tools.report_tool import generate_report
 
 SYSTEM_PROMPT = """你是一个企业文档处理智能体。你可以:
 
@@ -73,9 +74,11 @@ EVENTS_SYSTEM_PROMPT = """你是一个企业文档处理智能体。根据用户
    若提到具体商品/公司 → rag_query(query=词) 查明细 或 rag_summarize(keyword=词)。
 3. 用户要"画图/图表/柱状/饼图/可视化" → 调用 plot_chart(group_by, chart_type[, year])。
    绘图数据来自 SQL 聚合; 提到年份时传 year, 提到商品/公司时传 filter_query。
-4. 用户要"确认/修改/核对"识别数据 → correct_list_docs / correct_show_rows /
+4. 用户要"报告/汇报/生成文档/统计报告/Word" → 调用 generate_report([year])，
+   生成销售数据统计 Word 报告(.docx), 告知文件路径。
+5. 用户要"确认/修改/核对"识别数据 → correct_list_docs / correct_show_rows /
    correct_update_row / correct_confirm。
-5. 统计类问题默认用 rag_summarize(group_by='item') 或按需(desc/date)。
+6. 统计类问题默认用 rag_summarize(group_by='item') 或按需(desc/date)。
 
 规则:
 - 只统计已确认(confirmed)数据; 未确认时说明"待确认草稿"。
@@ -152,6 +155,7 @@ _TOOLS = [
     rag_query,
     rag_summarize,
     plot_chart,
+    generate_report,
 ]
 _TOOL_BY_NAME = {t.name: t for t in _TOOLS}
 
