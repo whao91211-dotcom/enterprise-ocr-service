@@ -114,8 +114,9 @@ async function runChat(text, file, dataUrl){
   busy=true;
   try{
     let r;
-    if(file){ const fd=new FormData(); fd.append('file',file); if(text)fd.append('message',text);
-      r=await fetch('/api/agent/chat',{method:'POST',body:fd}); }
+    if(file){ const fd=new FormData(); fd.append('file',file); fd.append('message',text);
+      fd.append('history',JSON.stringify(history));
+      r=await fetch('/api/agent/chat/upload',{method:'POST',body:fd}); }
     else{ r=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:text,history})}); }
     if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.detail||r.status); }
