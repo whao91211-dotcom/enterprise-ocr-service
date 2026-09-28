@@ -7,6 +7,7 @@ delivery, not answer quality, OCR accuracy, or model latency.
 from __future__ import annotations
 
 import json
+import argparse
 import sys
 import tempfile
 from pathlib import Path
@@ -17,6 +18,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from db import database  # Keep the module alive across patch.dict's import cleanup.
 
 
 def _observe(message: str, history: list[dict], image_path: str | None):
@@ -31,11 +33,20 @@ def _observe(message: str, history: list[dict], image_path: str | None):
 def _response(client: TestClient, path: str, **kwargs) -> dict:
     response = client.post(path, **kwargs)
     response.raise_for_status()
-    event = json.loads(response.text.removeprefix("data: ").strip())
-    return json.loads(event["answer"])
+    events = [json.loads(part.removeprefix("data: "))
+              for part in response.text.strip().split("\n\n")]
+    answer = next(event for event in events if event["type"] == "answer")
+    observed = json.loads(answer["answer"])
+    observed["session_id"] = next(event["session_id"] for event in events
+                                  if event["type"] == "session")
+    return observed
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--after", action="store_true",
+                        help="Resume with the server-issued SQLite session ID")
+    args = parser.parse_args()
     stub = ModuleType("agent.agent")
     stub.run_agent_events = _observe
     with patch.dict(sys.modules, {"agent.agent": stub}):
@@ -46,6 +57,9 @@ def main() -> None:
     app.include_router(agent_chat.router)
 
     with tempfile.TemporaryDirectory(prefix="agent_memory_baseline_") as tmp:
+        database._DATA_DIR = Path(tmp)
+        database.DB_PATH = Path(tmp) / "agent.db"
+        database.init_db()
         agent_chat.UPLOAD_DIR = Path(tmp)
         client = TestClient(app)
 
@@ -67,13 +81,17 @@ def main() -> None:
         )
 
         preference = "以后默认按月汇总"
-        _response(client, "/api/agent/chat", json={"message": preference, "history": []})
-        # A page reload starts with empty browser history; the server has no session ID.
+        initial = _response(client, "/api/agent/chat",
+                            json={"message": preference, "history": []})
+        # Simulate a reload: no browser history is sent, only the saved session ID.
         reopened = TestClient(app)
+        resume_body = {"message": "继续刚才的汇总", "history": []}
+        if args.after:
+            resume_body["session_id"] = initial["session_id"]
         resume = _response(
             reopened,
             "/api/agent/chat",
-            json={"message": "继续刚才的汇总", "history": []},
+            json=resume_body,
         )
 
     cases = [
@@ -95,6 +113,7 @@ def main() -> None:
     ]
     print(json.dumps({
         "metric": "required_context_available_at_agent_boundary",
+        "mode": "sqlite_session_memory" if args.after else "browser_history_only",
         "offline_cases": len(cases),
         "available_cases": sum(case["context_available"] for case in cases),
         "cases": cases,

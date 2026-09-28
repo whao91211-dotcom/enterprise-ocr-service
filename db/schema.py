@@ -1,4 +1,4 @@
-"""SQLite schema: documents(图) + ocr_rows(识别行) 两级表。
+"""SQLite schema: documents/ocr_rows plus chat sessions/messages.
 
 - documents: 上传的每张图(支票/销售单)
   - id, file_name(源文件名, 唯一), sha256, uploaded_at
@@ -9,6 +9,7 @@
     amount(数量), price(单价), tax(税率), sum(金额)
   - status: pending(待确认) / confirmed(已确认)
   - modified_by, modified_at, created_at
+- chat_sessions/chat_messages: 会话 ID 和逐轮用户/Agent 消息
 """
 
 SQL_SCHEMA = """
@@ -43,4 +44,21 @@ CREATE TABLE IF NOT EXISTS ocr_rows (
 CREATE INDEX IF NOT EXISTS idx_ocr_rows_doc    ON ocr_rows(doc_id);
 CREATE INDEX IF NOT EXISTS idx_ocr_rows_status ON ocr_rows(status);
 CREATE INDEX IF NOT EXISTS idx_ocr_rows_item   ON ocr_rows(item);
+
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id         TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    role       TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session
+    ON chat_messages(session_id, id);
 """

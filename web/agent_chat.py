@@ -1,8 +1,8 @@
 """Agent 聊天流式端点(SSE): 供深色工业风界面调用。
 
-POST /api/agent/chat          JSON: {message, history}
-POST /api/agent/chat/upload   multipart: file, message, history(JSON字符串)
-返回 SSE 事件流: intent/llm_text/tool_call/tool_result/answer/error
+POST /api/agent/chat          JSON: {message, session_id?, history?}
+POST /api/agent/chat/upload   multipart: file, message, session_id?, history?
+返回 SSE 事件流: session/intent/llm_text/tool_call/tool_result/answer/error
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from agent.agent import run_agent_events
+from db import chat_memory
 
 router = APIRouter(tags=["agent-chat"])
 
@@ -27,11 +28,19 @@ ALLOWED_EXT = {"png", "jpg", "jpeg", "webp", "bmp"}
 class ChatIn(BaseModel):
     message: str = Field(default="", max_length=4000)
     history: list[dict] = Field(default_factory=list)
+    session_id: str | None = None
 
 
 @router.post("/api/agent/chat")
 async def agent_chat(body: ChatIn):
-    return _event_response(body.message, body.history, None)
+    return _event_response(body.message, body.history, None, body.session_id)
+
+
+@router.get("/api/agent/sessions/{session_id}")
+def get_chat_session(session_id: str):
+    if not chat_memory.session_exists(session_id):
+        raise HTTPException(404, "会话不存在")
+    return {"session_id": session_id, "messages": chat_memory.load_messages(session_id)}
 
 
 @router.post("/api/agent/chat/upload")
@@ -39,9 +48,10 @@ async def agent_chat_upload(
     file: UploadFile = File(...),
     message: str = Form(""),
     history: str = Form("[]"),
+    session_id: str = Form(""),
 ):
     try:
-        body = ChatIn(message=message, history=json.loads(history))
+        body = ChatIn(message=message, history=json.loads(history), session_id=session_id)
     except (json.JSONDecodeError, ValidationError) as e:
         raise HTTPException(422, f"聊天内容格式错误: {e}") from e
 
@@ -54,13 +64,24 @@ async def agent_chat_upload(
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     saved = UPLOAD_DIR / f"{uuid.uuid4().hex}.{ext}"
     saved.write_bytes(data)
-    return _event_response(body.message, body.history, str(saved))
+    return _event_response(body.message, body.history, str(saved), body.session_id,
+                           file.filename or "图片")
 
 
-def _event_response(message: str, history: list[dict], image_path: str | None):
+def _event_response(message: str, history: list[dict], image_path: str | None,
+                    requested_session_id: str | None, image_name: str | None = None):
+    session_id, existed = chat_memory.resolve_session(requested_session_id)
+    context = chat_memory.load_messages(session_id, limit=10) if existed else history[-10:]
+    user_content = message.strip()
+    if image_path:
+        user_content = f"{user_content} [已上传图片: {image_name}]".strip()
+
     async def gen():
         try:
-            for ev in run_agent_events(message, history, image_path):
+            yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+            for ev in run_agent_events(message, context, image_path):
+                if ev.get("type") == "answer":
+                    chat_memory.save_turn(session_id, user_content, ev["answer"])
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except RuntimeError as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"

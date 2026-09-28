@@ -1,0 +1,24 @@
+{
+  "metric": "required_context_available_at_agent_boundary",
+  "mode": "sqlite_session_memory",
+  "offline_cases": 3,
+  "available_cases": 3,
+  "cases": [
+    {
+      "case": "text_followup_with_client_history",
+      "context_available": true
+    },
+    {
+      "case": "image_followup_with_client_history",
+      "context_available": true
+    },
+    {
+      "case": "resume_after_page_reload",
+      "context_available": true
+    }
+  ],
+  "limitations": [
+    "Agent and OCR are replaced; this is not answer accuracy or OCR accuracy",
+    "No model latency, token usage, or API cost is measured"
+  ]
+}

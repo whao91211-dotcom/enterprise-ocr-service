@@ -62,7 +62,8 @@
 <header>
   <div class="logo"><span class="mark">DM</span> DocMind · Agent</div>
   <div class="head-meta">企业文档处理 · 智能中控</div>
-  <div class="head-status"><b>●</b> InternVL · DeepSeek 在线</div>
+  <button class="btn ghost" onclick="newChat()">新对话</button>
+  <div class="head-status"><b>●</b> DeepSeek · OCR 暂不可用</div>
 </header>
 <main>
   <div id="messages">
@@ -82,7 +83,24 @@
   <div class="hint">// 选图后自动发出识别 · 输入 确认 计入统计 · 图表直接显示在对话里</div>
 </footer>
 <script>
-let history=[], busy=false;
+const SESSION_KEY='docmind_agent_session_id';
+let sessionId=localStorage.getItem(SESSION_KEY)||'', busy=false;
+async function restoreSession(){
+  if(!sessionId) return;
+  busy=true;
+  try{
+    const r=await fetch('/api/agent/sessions/'+encodeURIComponent(sessionId));
+    if(r.status===404){ sessionId=''; localStorage.removeItem(SESSION_KEY); return; }
+    if(!r.ok) throw new Error(r.status);
+    const data=await r.json();
+    for(const item of data.messages){
+      if(item.role==='user') addUserText(item.content);
+      else if(item.role==='assistant') addMsg('bot','<div class="body">'+renderMd(esc(item.content))+'</div>');
+    }
+  }catch(err){ addTrace('⚠ 历史记录暂时无法读取','t-err'); }
+  finally{ busy=false; }
+}
+function newChat(){ if(busy) return; localStorage.removeItem(SESSION_KEY); location.reload(); }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function scroll(){ const m=document.getElementById('messages'); m.scrollTop=m.scrollHeight; }
 function addUserText(text){ return addMsg('user','<div class="body">'+esc(text)+'</div>'); }
@@ -115,32 +133,32 @@ async function runChat(text, file, dataUrl){
   try{
     let r;
     if(file){ const fd=new FormData(); fd.append('file',file); fd.append('message',text);
-      fd.append('history',JSON.stringify(history));
+      fd.append('session_id',sessionId);
       r=await fetch('/api/agent/chat/upload',{method:'POST',body:fd}); }
     else{ r=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,history})}); }
+      body:JSON.stringify({message:text,session_id:sessionId})}); }
     if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.detail||r.status); }
-    const reader=r.body.getReader(), dec=new TextDecoder(); let acc='', ans='';
+    const reader=r.body.getReader(), dec=new TextDecoder(); let acc='', ans='', streamError='';
     while(true){ const {value,done}=await reader.read(); if(done)break;
       acc+=dec.decode(value,{stream:true}); const parts=acc.split('\n\n'); acc=parts.pop();
       for(const part of parts){ if(!part.startsWith('data: '))continue; const ev=JSON.parse(part.slice(6));
-        if(ev.type==='intent'){ if(ev.intent&&ev.intent!=='chat') addTrace('→ intent: <span class="t-ag">'+esc(ev.intent)+'</span>'); }
+        if(ev.type==='session'){ sessionId=ev.session_id; localStorage.setItem(SESSION_KEY,sessionId); }
+        else if(ev.type==='intent'){ if(ev.intent&&ev.intent!=='chat') addTrace('→ intent: <span class="t-ag">'+esc(ev.intent)+'</span>'); }
         else if(ev.type==='tool_call'){ addTrace('→ tool: <span class="t-ag">'+esc(ev.name)+'</span>('+esc(JSON.stringify(ev.args).slice(0,60))+')'); }
         else if(ev.type==='tool_result'){ renderToolResult(ev.name, ev.result); }
         else if(ev.type==='answer'){ ans=ev.answer; }
-        else if(ev.type==='error'){ addTrace('⚠ <span class="t-err">'+esc(ev.message)+'</span>'); }
+        else if(ev.type==='error'){ streamError=ev.message; addTrace('⚠ <span class="t-err">'+esc(ev.message)+'</span>'); }
       } }
     // 渲染最终回答
+    if(streamError && !ans) throw new Error(streamError);
     panel.querySelector('.body').innerHTML = ans ? renderMd(ans) : '（无内容）';
     // 若回答里带图表路径也补图
     attachCharts(panel.querySelector('.body'));
-    history.push({role:'user',content:text||'[uploaded image]'});
-    history.push({role:'assistant',content:ans||''});
-    history=history.slice(-20);
   }catch(err){
     panel.querySelector('.body').textContent='⚠️ '+err.message;
   }finally{ busy=false; if(dataUrl) URL.revokeObjectURL(dataUrl); }
 }
+restoreSession();
 function renderToolResult(name, result){
   const s=String(result).slice(0,260);
   addTrace('&nbsp;&nbsp;↳ <span class="t-res">'+esc(s)+'</span>');
