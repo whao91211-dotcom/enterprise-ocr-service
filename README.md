@@ -91,6 +91,8 @@ pytest tests -q
 ruff check db agent tools web config.py
 ```
 
+上下文窗口与压缩前基线：`python evals/context_window_baseline.py`。合成场景和测量边界见 [基线记录](docs/evals/context-window-baseline-2026-09-28.md)；该脚本不调用 DeepSeek 或 OCR。
+
 ## 环境依赖
 
 - **InternVL 9052**：识别单据（OpenAI 兼容端点，单槽串行，重启可恢复）

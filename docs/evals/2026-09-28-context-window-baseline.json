@@ -1,0 +1,147 @@
+{
+  "measurement": "offline context text at actual Agent model boundary",
+  "tokenizer_proxy": "tiktoken cl100k_base 0.13.0",
+  "bound_tool_count": 9,
+  "cases": [
+    {
+      "case": "short_followup",
+      "input_history_messages": 2,
+      "retained_history_messages": 2,
+      "dropped_history_messages": 0,
+      "preference_count": 0,
+      "model_invocations": 1,
+      "initial_components": {
+        "system": {
+          "messages": 1,
+          "characters": 727,
+          "proxy_tokens": 421
+        },
+        "human": {
+          "messages": 2,
+          "characters": 21,
+          "proxy_tokens": 22
+        },
+        "ai": {
+          "messages": 1,
+          "characters": 19,
+          "proxy_tokens": 16
+        }
+      },
+      "initial_message_proxy_tokens": 459,
+      "final_message_proxy_tokens": 459,
+      "tool_schema_proxy_tokens": 1331,
+      "required_history_fact_retained": true
+    },
+    {
+      "case": "long_followup",
+      "input_history_messages": 14,
+      "retained_history_messages": 10,
+      "dropped_history_messages": 4,
+      "preference_count": 0,
+      "model_invocations": 1,
+      "initial_components": {
+        "system": {
+          "messages": 1,
+          "characters": 727,
+          "proxy_tokens": 421
+        },
+        "human": {
+          "messages": 6,
+          "characters": 52,
+          "proxy_tokens": 53
+        },
+        "ai": {
+          "messages": 5,
+          "characters": 47,
+          "proxy_tokens": 45
+        }
+      },
+      "initial_message_proxy_tokens": 519,
+      "final_message_proxy_tokens": 519,
+      "tool_schema_proxy_tokens": 1331,
+      "required_history_fact_retained": false
+    },
+    {
+      "case": "long_single_reply",
+      "input_history_messages": 2,
+      "retained_history_messages": 2,
+      "dropped_history_messages": 0,
+      "preference_count": 0,
+      "model_invocations": 1,
+      "initial_components": {
+        "system": {
+          "messages": 1,
+          "characters": 727,
+          "proxy_tokens": 421
+        },
+        "human": {
+          "messages": 2,
+          "characters": 7,
+          "proxy_tokens": 8
+        },
+        "ai": {
+          "messages": 1,
+          "characters": 8400,
+          "proxy_tokens": 7200
+        }
+      },
+      "initial_message_proxy_tokens": 7629,
+      "final_message_proxy_tokens": 7629,
+      "tool_schema_proxy_tokens": 1331
+    },
+    {
+      "case": "maximum_preferences",
+      "input_history_messages": 0,
+      "retained_history_messages": 0,
+      "dropped_history_messages": 0,
+      "preference_count": 20,
+      "model_invocations": 1,
+      "initial_components": {
+        "system": {
+          "messages": 1,
+          "characters": 4296,
+          "proxy_tokens": 4264
+        },
+        "human": {
+          "messages": 1,
+          "characters": 7,
+          "proxy_tokens": 10
+        }
+      },
+      "initial_message_proxy_tokens": 4274,
+      "final_message_proxy_tokens": 4274,
+      "tool_schema_proxy_tokens": 1331
+    },
+    {
+      "case": "large_tool_result",
+      "input_history_messages": 0,
+      "retained_history_messages": 0,
+      "dropped_history_messages": 0,
+      "preference_count": 0,
+      "model_invocations": 2,
+      "initial_components": {
+        "system": {
+          "messages": 1,
+          "characters": 727,
+          "proxy_tokens": 421
+        },
+        "human": {
+          "messages": 1,
+          "characters": 6,
+          "proxy_tokens": 4
+        }
+      },
+      "initial_message_proxy_tokens": 425,
+      "final_message_proxy_tokens": 9261,
+      "tool_schema_proxy_tokens": 1331,
+      "tool_result_characters_to_model": 10400,
+      "tool_result_characters_to_ui": 2000
+    }
+  ],
+  "limitations": [
+    "Proxy tokens are not DeepSeek billing/input tokens",
+    "Message role framing and provider serialization are not counted",
+    "Tool schema tokens use local JSON serialization, not the provider payload",
+    "Fake model and synthetic data: no answer quality, latency, cost, or OCR measured"
+  ]
+}
