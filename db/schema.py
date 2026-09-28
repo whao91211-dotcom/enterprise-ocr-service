@@ -10,6 +10,7 @@
   - status: pending(待确认) / confirmed(已确认)
   - modified_by, modified_at, created_at
 - chat_sessions/chat_messages: 会话 ID 和逐轮用户/Agent 消息
+- memory_profiles/memory_preferences: 跨会话档案及用户明确保存的偏好
 """
 
 SQL_SCHEMA = """
@@ -61,4 +62,16 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session
     ON chat_messages(session_id, id);
+
+CREATE TABLE IF NOT EXISTS memory_profiles (
+    id         TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS memory_preferences (
+    profile_id TEXT NOT NULL REFERENCES memory_profiles(id) ON DELETE CASCADE,
+    content    TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    PRIMARY KEY (profile_id, content)
+);
 """

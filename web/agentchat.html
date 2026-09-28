@@ -80,11 +80,13 @@
     <button class="btn" onclick="sendText()">发送</button>
     <input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/bmp" onchange="onPick(event)">
   </div>
-  <div class="hint">// 选图后自动发出识别 · 输入 确认 计入统计 · 图表直接显示在对话里</div>
+  <div class="hint">// 选图后自动发出识别 · 跨会话偏好：记住：内容 / 忘记：原内容 / 查看记忆</div>
 </footer>
 <script>
 const SESSION_KEY='docmind_agent_session_id';
 let sessionId=localStorage.getItem(SESSION_KEY)||'', busy=false;
+const PROFILE_KEY='docmind_agent_profile_id';
+let profileId=localStorage.getItem(PROFILE_KEY)||'';
 async function restoreSession(){
   if(!sessionId) return;
   busy=true;
@@ -133,16 +135,19 @@ async function runChat(text, file, dataUrl){
   try{
     let r;
     if(file){ const fd=new FormData(); fd.append('file',file); fd.append('message',text);
-      fd.append('session_id',sessionId);
+      fd.append('session_id',sessionId); fd.append('profile_id',profileId);
       r=await fetch('/api/agent/chat/upload',{method:'POST',body:fd}); }
     else{ r=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:text,session_id:sessionId})}); }
+      body:JSON.stringify({message:text,session_id:sessionId,profile_id:profileId})}); }
     if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.detail||r.status); }
     const reader=r.body.getReader(), dec=new TextDecoder(); let acc='', ans='', streamError='';
     while(true){ const {value,done}=await reader.read(); if(done)break;
       acc+=dec.decode(value,{stream:true}); const parts=acc.split('\n\n'); acc=parts.pop();
       for(const part of parts){ if(!part.startsWith('data: '))continue; const ev=JSON.parse(part.slice(6));
-        if(ev.type==='session'){ sessionId=ev.session_id; localStorage.setItem(SESSION_KEY,sessionId); }
+        if(ev.type==='session'){
+          sessionId=ev.session_id; localStorage.setItem(SESSION_KEY,sessionId);
+          profileId=ev.profile_id; localStorage.setItem(PROFILE_KEY,profileId);
+        }
         else if(ev.type==='intent'){ if(ev.intent&&ev.intent!=='chat') addTrace('→ intent: <span class="t-ag">'+esc(ev.intent)+'</span>'); }
         else if(ev.type==='tool_call'){ addTrace('→ tool: <span class="t-ag">'+esc(ev.name)+'</span>('+esc(JSON.stringify(ev.args).slice(0,60))+')'); }
         else if(ev.type==='tool_result'){ renderToolResult(ev.name, ev.result); }

@@ -21,7 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from db import database  # Keep the module alive across patch.dict's import cleanup.
 
 
-def _observe(message: str, history: list[dict], image_path: str | None):
+def _observe(message: str, history: list[dict], image_path: str | None,
+             preferences: list[str] | None = None):
     observation = {
         "message": message,
         "history": history,

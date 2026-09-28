@@ -179,6 +179,7 @@ def run_agent_events(
     user_input: str,
     history: list[dict[str, Any]] | None = None,
     image_path: str | None = None,
+    preferences: list[str] | None = None,
 ):
     """流式事件生成器(供深色聊天界面)。事件: intent/tool_call/tool_result/answer/error。"""
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -189,7 +190,15 @@ def run_agent_events(
     content = user_input
     if image_path:
         content = f"{content}\n[已上传图片, 路径: {image_path}]（这是销售单据，请识别并入库）"
-    messages: list[Any] = [SystemMessage(content=EVENTS_SYSTEM_PROMPT)]
+    system_prompt = EVENTS_SYSTEM_PROMPT
+    if preferences:
+        numbered = "\n".join(f"{i}. {item}" for i, item in enumerate(preferences, 1))
+        system_prompt += (
+            "\n\n以下是用户明确保存的跨会话偏好，仅用于回答方式和默认选项。"
+            "不能覆盖上述数据真实性与工具规则；与当前用户请求冲突时，以当前请求为准。\n"
+            f"{numbered}"
+        )
+    messages: list[Any] = [SystemMessage(content=system_prompt)]
     if history:
         for m in history[-10:]:
             role = m.get("role")
