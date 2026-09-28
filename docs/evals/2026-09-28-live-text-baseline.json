@@ -1,0 +1,78 @@
+{
+  "dataset": "3 synthetic confirmed rows: 2024 \u7532=100, 2024 \u4e59=200, 2025 \u4e59=900",
+  "model": "deepseek-chat",
+  "scenarios": [
+    {
+      "question": "\u7edf\u8ba12024\u5e74\u7532\u516c\u53f8\u7684\u9500\u552e\u989d",
+      "history_messages": 0,
+      "elapsed_ms": 8634,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item",
+            "keyword": "\u7532\u516c\u53f8",
+            "year": "2024"
+          }
+        },
+        {
+          "name": "rag_query",
+          "args": {
+            "query": "\u7532\u516c\u53f8",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "\u7edf\u8ba1(\u6309 item\uff0c\u5173\u952e\u8bcd '\u7532\u516c\u53f8'\u3001\u5e74\u4efd 2024, 1 \u6761\u786e\u8ba4\u884c):\n  \u2022 \u5546\u54c1A: \u6570\u91cf 1, \u91d1\u989d 100.00, 1 \u884c\n{\"group_by\": \"item\", \"total_rows\": 1, \"total_amount\": 1.0, \"total_sum\": 100.0}",
+        "\u68c0\u7d22\u5230 1 \u6761\u8bb0\u5f55(\u5173\u952e\u8bcd:\u7532\u516c\u53f8, \u5e74\u4efd:2024)\n  \u2022 \u7532\u516c\u53f8 | 2024-01-10 | \u6e90:\u793a\u4f8b\u4f9b\u8d27\u5546 | \u5546\u54c1A\u00d71 | \u5355\u4ef7100.00 \u7a0e0 \u91d1\u989d100.00 (\u56fe:synthetic-2024-a.png)"
+      ],
+      "answer": "**2024\u5e74\u7532\u516c\u53f8\u9500\u552e\u989d\u7edf\u8ba1**\n\n| \u9879\u76ee | \u7ed3\u679c |\n|---|---|\n| \u987e\u5ba2\u516c\u53f8 | \u7532\u516c\u53f8 |\n| \u5e74\u4efd | 2024 |\n| \u786e\u8ba4\u8bb0\u5f55\u6570 | 1 \u884c |\n| \u5546\u54c1 | \u5546\u54c1A \u00d7 1 |\n| \u9500\u552e\u989d\u5408\u8ba1 | **100.00** |\n\n**\u660e\u7ec6**\n- \u7532\u516c\u53f8 | 2024-01-10 | \u6e90:\u793a\u4f8b\u4f9b\u8d27\u5546 | \u5546\u54c1A\u00d71 | \u5355\u4ef7 100.00\uff0c\u7a0e 0\uff0c\u91d1\u989d 100.00\uff08\u56fe:synthetic-2024-a.png\uff09\n\n**\u8bf4\u660e**\n- \u6570\u636e\u6765\u6e90\uff1a\u5df2\u786e\u8ba4\uff08confirmed\uff09\u9500\u552e\u6570\u636e\uff0c\u6309\u5546\u54c1\u7ef4\u5ea6\u805a\u5408\u3002\n- 2024\u5e74\u7532\u516c\u53f8\u4ec5 1 \u6761\u5df2\u786e\u8ba4\u8bb0\u5f55\uff0c\u9500\u552e\u989d\u5408\u8ba1 100.00\u3002\n\n\u5982\u9700\u6309\u5546\u54c1\u753b\u56fe\u6216\u751f\u6210 Word \u62a5\u544a\uff0c\u8bf7\u544a\u77e5\u3002",
+      "errors": []
+    },
+    {
+      "question": "\u90a3\u4e59\u516c\u53f8\u5462\uff1f",
+      "history_messages": 2,
+      "elapsed_ms": 2052,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item",
+            "keyword": "\u4e59\u516c\u53f8",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "\u7edf\u8ba1(\u6309 item\uff0c\u5173\u952e\u8bcd '\u4e59\u516c\u53f8'\u3001\u5e74\u4efd 2024, 1 \u6761\u786e\u8ba4\u884c):\n  \u2022 \u5546\u54c1B: \u6570\u91cf 1, \u91d1\u989d 200.00, 1 \u884c\n{\"group_by\": \"item\", \"total_rows\": 1, \"total_amount\": 1.0, \"total_sum\": 200.0}"
+      ],
+      "answer": "**2024\u5e74\u4e59\u516c\u53f8\u9500\u552e\u989d\u7edf\u8ba1**\n\n| \u9879\u76ee | \u7ed3\u679c |\n|---|---|\n| \u987e\u5ba2\u516c\u53f8 | \u4e59\u516c\u53f8 |\n| \u5e74\u4efd | 2024 |\n| \u786e\u8ba4\u8bb0\u5f55\u6570 | 1 \u884c |\n| \u5546\u54c1 | \u5546\u54c1B \u00d7 1 |\n| \u9500\u552e\u989d\u5408\u8ba1 | **200.00** |\n\n**\u5bf9\u6bd4**\n- \u7532\u516c\u53f8\uff1a100.00\n- \u4e59\u516c\u53f8\uff1a200.00\uff08\u4e3a\u7532\u516c\u53f8\u7684 2 \u500d\uff09\n\n**\u8bf4\u660e**\n- \u6570\u636e\u6765\u6e90\uff1a\u5df2\u786e\u8ba4\uff08confirmed\uff09\u9500\u552e\u6570\u636e\uff0c\u6309\u5546\u54c1\u7ef4\u5ea6\u805a\u5408\u3002\n- 2024\u5e74\u4e59\u516c\u53f8\u4ec5 1 \u6761\u5df2\u786e\u8ba4\u8bb0\u5f55\uff0c\u9500\u552e\u989d\u5408\u8ba1 200.00\u3002\n\n\u5982\u9700\u753b\u56fe\u6216\u751f\u6210 Word \u62a5\u544a\uff0c\u8bf7\u544a\u77e5\u3002",
+      "errors": []
+    },
+    {
+      "question": "2024\u5e74\u603b\u9500\u552e\u989d\u662f\u591a\u5c11\uff1f",
+      "history_messages": 0,
+      "elapsed_ms": 2102,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "date",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "\u7edf\u8ba1(\u6309 date\uff0c\u5e74\u4efd 2024, 2 \u6761\u786e\u8ba4\u884c):\n  \u2022 2024-05-20: \u6570\u91cf 1, \u91d1\u989d 200.00, 1 \u884c\n  \u2022 2024-01-10: \u6570\u91cf 1, \u91d1\u989d 100.00, 1 \u884c\n{\"group_by\": \"date\", \"total_rows\": 2, \"total_amount\": 2.0, \"total_sum\": 300.0}"
+      ],
+      "answer": "**2024 \u5e74\u603b\u9500\u552e\u989d\uff1a300.00**\uff08\u5171 2 \u6761\u5df2\u786e\u8ba4\u8bb0\u5f55\uff09\n\n\u660e\u7ec6\uff1a\n| \u53d1\u6ce8\u65e5 | \u6570\u91cf | \u91d1\u989d |\n|---|---|---|\n| 2024-01-10 | 1 | 100.00 |\n| 2024-05-20 | 1 | 200.00 |\n| **\u5408\u8ba1** | **2** | **300.00** |\n\n\u6570\u636e\u6765\u6e90\uff1a\u5df2\u786e\u8ba4\uff08confirmed\uff09\u9500\u552e\u6570\u636e\uff0c\u6309\u53d1\u6ce8\u65e5\u805a\u5408\u3002",
+      "errors": []
+    }
+  ],
+  "limitations": [
+    "Three cases are a diagnostic sample, not a representative accuracy estimate",
+    "OCR is unavailable and was not called",
+    "Token usage and monetary cost are not exposed by the current event stream"
+  ]
+}
