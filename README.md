@@ -95,6 +95,8 @@ ruff check db agent tools web config.py
 
 SQL 工具结果已使用程序生成结构化摘要，明细和分组最多展示 20 行，统计总额包含全部匹配记录。配对结果与限制见 [结构化摘要评估](docs/evals/structured-tools-2026-09-30.md)。
 
+任务与异常保护的第一轮基线见 [任务评估记录](docs/evals/task-benchmark-baseline-2026-09-30.md)。离线程序保护与真实模型任务表现分别报告。
+
 ## 环境依赖
 
 - **InternVL 9052**：识别单据（OpenAI 兼容端点，单槽串行，重启可恢复）

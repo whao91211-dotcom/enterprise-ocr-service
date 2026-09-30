@@ -1,0 +1,95 @@
+{
+  "dataset": "synthetic: 2024 甲=100, 2024 乙=200, 2025 乙=900",
+  "model": "deepseek-chat",
+  "cases": [
+    {
+      "question": "统计2024年甲公司的销售额",
+      "history_messages": 0,
+      "elapsed_ms": 7295,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年 甲公司 销售额统计**（数据来源：已确认数据 ocr_rows）\n\n| 项目 | 数值 |\n|---|---|\n| 匹配行数 | 1 行 |\n| 销售额合计（sum） | 100.00 |\n| 数量合计（amount） | 1 |\n\n**结论**：2024年甲公司仅有 1 条已确认记录，销售额合计 **100.00**。\n\n⚠️ 提示：该结果仅基于**已确认**数据，且匹配行数很少（仅1行）。若您预期甲公司应有更多交易，可能部分单据仍为**待确认草稿**，尚未纳入统计。需要我列出所有单据的确认进度，或查看该条明细吗？",
+      "errors": [],
+      "expected_total": 100,
+      "status": "passed_diagnostic_review",
+      "review": {
+        "method": "assistant inspection of tool arguments, outputs and final answer",
+        "amount_correct": true,
+        "year_filter_correct": true,
+        "tool_choice_correct": true
+      }
+    },
+    {
+      "question": "那乙公司呢？",
+      "history_messages": 2,
+      "elapsed_ms": 2445,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "乙公司",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"乙公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":200.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"rows\":[[\"乙公司\",1.0,200.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年 乙公司 销售额统计**（数据来源：已确认数据 ocr_rows）\n\n| 项目 | 数值 |\n|---|---|\n| 匹配行数 | 1 行 |\n| 销售额合计（sum） | 200.00 |\n| 数量合计（amount） | 1 |\n\n**结论**：2024年乙公司仅有 1 条已确认记录，销售额合计 **200.00**。\n\n**对比**：2024年甲公司 100.00 ｜ 乙公司 200.00，乙公司为甲公司的 2 倍。\n\n⚠️ 同样提示：两家公司均只有 1 条已确认记录，若预期交易更多，可能有单据仍为**待确认草稿**。需要我列出全部单据的确认进度吗？",
+      "errors": [],
+      "expected_total": 200,
+      "status": "passed_diagnostic_review",
+      "review": {
+        "method": "assistant inspection of tool arguments, outputs and final answer",
+        "amount_correct": true,
+        "year_filter_correct": true,
+        "tool_choice_correct": true
+      }
+    },
+    {
+      "question": "2024年总销售额是多少？",
+      "history_messages": 0,
+      "elapsed_ms": 2349,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2024\"},\"group_by\":\"item\",\"summary\":{\"total_rows\":2,\"total_amount\":2.0,\"total_sum\":300.0},\"total_groups\":2,\"returned_groups\":2,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"rows\":[[\"商品B\",1.0,200.0,1],[\"商品A\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年总销售额：300.00**（合计 2 笔已确认单据）\n\n| 商品 | 金额合计 | 笔数 |\n|---|---|---|\n| 商品B | 200.00 | 1 |\n| 商品A | 100.00 | 1 |\n| **合计** | **300.00** | **2** |\n\n数据来源：已确认（confirmed）销售数据表 `ocr_rows`，按发注日年份 2024 过滤。\n\n说明：以上仅统计已确认数据；若还有未确认的识别草稿，需先核对确认后才会纳入统计。",
+      "errors": [],
+      "expected_total": 300,
+      "status": "passed_diagnostic_review",
+      "review": {
+        "method": "assistant inspection of tool arguments, outputs and final answer",
+        "amount_correct": true,
+        "year_filter_correct": true,
+        "tool_choice_correct": true
+      }
+    }
+  ],
+  "limitations": [
+    "Three diagnostic tasks, not 35-case Agent success rate",
+    "No OCR or provided invoice data sent to API",
+    "Evaluation sets SDK timeout=20s, retries=0; production defaults unchanged",
+    "Token usage and API cost not measured; answers require review"
+  ]
+}
