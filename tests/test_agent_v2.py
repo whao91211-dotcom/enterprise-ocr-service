@@ -1,6 +1,7 @@
 """agent v2 测试: db CRUD + 数据源(tools) 核心逻辑(不经真实模型/网络)。"""
 
 import os
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -80,6 +81,40 @@ def test_rag_query_logic():
     assert "掃除機" in out
     out2 = rag_query.invoke({"query": "不存在的商品XYZ"})
     assert "未检索到" in out2
+
+
+def test_query_summary_preserves_sources_and_marks_omitted_rows():
+    from tools.rag_tool import rag_query
+
+    doc_id = _seed(rows=[
+        {"desc": "甲公司", "date": "2024-01-01", "item": f"商品{i}",
+         "amount": "1", "price": "10", "tax": "0", "sum": "10"}
+        for i in range(25)
+    ], confirm=True)
+    result = json.loads(rag_query.invoke({"year": "2024", "top_k": 1000}))
+    assert result["matched_rows"] == 25
+    assert result["omitted_rows"] == 5
+    assert len(result["rows"]) == 20
+    first = dict(zip(result["columns"], result["rows"][0]))
+    assert first["doc_id"] == doc_id and first["file_name"] == "t.png"
+    assert first["date"] == "2024-01-01" and first["sum"] == "10"
+    assert "total_sum" not in result  # A detail sample must not pretend to be a full total.
+
+
+def test_group_summary_totals_include_omitted_groups_and_exclude_other_years():
+    from tools.rag_tool import rag_summarize
+
+    _seed(rows=[
+        {"desc": "甲公司", "date": "2024-01-01", "item": f"商品{i}",
+         "amount": "1", "sum": "10"} for i in range(25)
+    ] + [{"desc": "甲公司", "date": "2025-01-01", "item": "不应计入",
+          "amount": "100", "sum": "9999"}], confirm=True)
+    result = json.loads(rag_summarize.invoke({"year": "2024"}))
+    assert result["summary"] == {"total_rows": 25, "total_amount": 25, "total_sum": 250}
+    assert result["total_groups"] == 25 and result["omitted_groups"] == 5
+    assert len(result["rows"]) == 20
+    assert result["source"]["status"] == "confirmed"
+    assert result["filters"]["year"] == "2024"
 
 
 def test_correct_tools():

@@ -9,33 +9,38 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from langchain_core.tools import tool
 
 from db import crud
 
 _SELECTABLE = {"item", "desc", "date"}
+_MAX_DETAILS = 20
+_MAX_GROUPS = 20
+_DETAIL_COLUMNS = ["id", "doc_id", "file_name", "desc", "date", "from",
+                   "item", "amount", "price", "tax", "sum"]
+_SOURCE = {"table": "ocr_rows", "status": "confirmed"}
 
 
-def _fmt_row(r: dict[str, Any]) -> str:
-    return (
-        f"{r.get('desc','')} | {r.get('date','')} | 源:{r.get('from','')} | {r.get('item','')}×"
-        f"{r.get('amount','')} | 单价{r.get('price','')} 税{r.get('tax','')} "
-        f"金额{r.get('sum','')} (图:{r.get('file_name','')})"
-    )
+def _serialize(payload: dict) -> str:
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
 
 @tool
 def rag_query(query: str = "", year: str = "", top_k: int = 20) -> str:
-    """在已确认(confirmed)销售数据中按关键词和/或年份查明细。
+    """在已确认销售数据中查明细，返回结构化表格及来源；省略行数有明确标记。
+
+    rows 仅为样本，不可据此计算全部金额。完整统计请使用 rag_summarize。
 
     Args:
         query: 关键词(可空), 匹配 商品名/顾客公司/源公司/文件名, 如 "掃除機"。
         year: 年份(可空), 如 "2024" 或 "2024年", 匹配发注日的年份。
-        top_k: 最多返回条数(默认20)。
+        top_k: 最多返回条数(默认20，上限20)，更多明细请缩小关键词/年份范围。
     """
-    rows = crud.search_confirmed(keyword=query or None, year=year or None, top_k=top_k)
+    if top_k < 1:
+        return "top_k 必须大于 0。"
+    rows = crud.search_confirmed(keyword=query or None, year=year or None,
+                                 top_k=min(top_k, _MAX_DETAILS))
     if not rows:
         where = []
         if query:
@@ -43,16 +48,24 @@ def rag_query(query: str = "", year: str = "", top_k: int = 20) -> str:
         if year:
             where.append(f"年份 {year}")
         return f"（未检索到匹配的已确认数据{'[' + '、'.join(where) + ']' if where else ''}）"
-    lines = [f"检索到 {len(rows)} 条记录" +
-             (f"(关键词:{query}" + (f", 年份:{year}" if year else "") + ")" if query or year else "")]
-    for r in rows:
-        lines.append("  • " + _fmt_row(r))
-    return "\n".join(lines)
+    matched = crud.confirmed_count(keyword=query or None, year=year or None)
+    return _serialize({
+        "source": _SOURCE,
+        "filters": {"keyword": query, "year": year},
+        "matched_rows": matched,
+        "returned_rows": len(rows),
+        "omitted_rows": matched - len(rows),
+        "columns": _DETAIL_COLUMNS,
+        "rows": [[row.get(column) for column in _DETAIL_COLUMNS] for row in rows],
+        "note": "仅展示明细样本；总额用 rag_summarize，更多明细请缩小查询范围。",
+    })
 
 
 @tool
 def rag_summarize(group_by: str = "item", keyword: str = "", year: str = "") -> str:
-    """统计已确认(confirmed)销售数据的聚合结果(数量合计/金额合计)。
+    """统计已确认销售数据，返回全部匹配行的总额及前20个分组(按金额降序)。
+
+    summary 覆盖全部匹配行；rows 可能省略分组，数量见 omitted_groups。
 
     Args:
         group_by: 分组维度: item(按商品) / desc(按顾客公司) / date(按发注日)。
@@ -67,22 +80,21 @@ def rag_summarize(group_by: str = "item", keyword: str = "", year: str = "") -> 
     total = crud.confirmed_count(keyword=keyword or None, year=year or None)
     if not groups:
         return "（没有符合条件的已确认数据）"
-    where = []
-    if keyword:
-        where.append(f"关键词 '{keyword}'")
-    if year:
-        where.append(f"年份 {year}")
-    head = f"统计(按 {group_by}{('，'+'、'.join(where)) if where else ''}, {total} 条确认行):"
-    lines = [head]
-    for g in groups:
-        lines.append(
-            f"  • {g['group']}: 数量 {g['amount']:g}, 金额 {g['total']:.2f}, {g['rows']} 行"
-        )
     summary = {
-        "group_by": group_by,
         "total_rows": total,
         "total_amount": round(sum(g["amount"] for g in groups), 2),
         "total_sum": round(sum(g["total"] for g in groups), 2),
     }
-    lines.append(json.dumps(summary, ensure_ascii=False))
-    return "\n".join(lines)
+    selected = groups[:_MAX_GROUPS]
+    return _serialize({
+        "source": _SOURCE,
+        "filters": {"keyword": keyword, "year": year},
+        "group_by": group_by,
+        "summary": summary,
+        "total_groups": len(groups),
+        "returned_groups": len(selected),
+        "omitted_groups": len(groups) - len(selected),
+        "columns": ["group", "amount", "total", "rows"],
+        "rows": [[g["group"], g["amount"], g["total"], g["rows"]] for g in selected],
+        "note": "summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。",
+    })

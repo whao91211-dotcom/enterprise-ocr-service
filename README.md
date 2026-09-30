@@ -93,6 +93,8 @@ ruff check db agent tools web config.py
 
 上下文窗口与压缩前基线：`python evals/context_window_baseline.py`。合成场景和测量边界见 [基线记录](docs/evals/context-window-baseline-2026-09-28.md)；该脚本不调用 DeepSeek 或 OCR。
 
+SQL 工具结果已使用程序生成结构化摘要，明细和分组最多展示 20 行，统计总额包含全部匹配记录。配对结果与限制见 [结构化摘要评估](docs/evals/structured-tools-2026-09-30.md)。
+
 ## 环境依赖
 
 - **InternVL 9052**：识别单据（OpenAI 兼容端点，单槽串行，重启可恢复）
