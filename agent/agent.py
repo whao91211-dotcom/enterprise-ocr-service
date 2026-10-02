@@ -17,6 +17,7 @@ import json
 import config
 from agent.runtime_guard import CallTimeout, ToolOutcome, bounded_call
 from agent.field_semantics import FIELD_RULES
+from agent.task_state import from_tool_result
 
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
@@ -191,6 +192,7 @@ def run_agent_events(
     history: list[dict[str, Any]] | None = None,
     image_path: str | None = None,
     preferences: list[str] | None = None,
+    task_state: dict[str, Any] | None = None,
 ):
     """流式事件生成器(供深色聊天界面)。事件: intent/tool_call/tool_result/answer/error。"""
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -202,6 +204,13 @@ def run_agent_events(
     if image_path:
         content = f"{content}\n[已上传图片, 路径: {image_path}]（这是销售单据，请识别并入库）"
     system_prompt = EVENTS_SYSTEM_PROMPT
+    if task_state:
+        system_prompt += (
+            '\n本会话最近成功查询的历史条件（不是当前请求的强制参数）：'
+            + json.dumps(task_state, ensure_ascii=False)
+            + '\n仅在用户明确继续此前查询且近期消息缺少条件时参考；当前请求和近期消息优先。'
+              '新任务不能自动套用这些条件；不明确时应询问，不猜测。'
+        )
     if preferences:
         numbered = "\n".join(f"{i}. {item}" for i, item in enumerate(preferences, 1))
         system_prompt += (
@@ -268,6 +277,9 @@ def run_agent_events(
                 return
             yield {"type": "tool_result", "name": tc.get("name", ""), "result": result[:2000]}
             messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
+            state = from_tool_result(tc.get('name'), result)
+            if state is not None:
+                yield {'type': 'task_state', 'state': state}
             if getattr(result, 'failed', False):
                 if tc.get('name') in {'ocr_recognize_chat', 'ocr_recognize',
                                       'correct_update_row', 'correct_confirm',

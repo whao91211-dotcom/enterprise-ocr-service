@@ -22,7 +22,7 @@ from db import database  # Keep the module alive across patch.dict's import clea
 
 
 def _observe(message: str, history: list[dict], image_path: str | None,
-             preferences: list[str] | None = None):
+             preferences: list[str] | None = None, task_state: dict | None = None):
     observation = {
         "message": message,
         "history": history,

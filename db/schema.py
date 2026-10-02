@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session
     ON chat_messages(session_id, id);
 
+CREATE TABLE IF NOT EXISTS chat_task_state (
+    session_id TEXT PRIMARY KEY REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
 CREATE TABLE IF NOT EXISTS memory_profiles (
     id         TEXT PRIMARY KEY,
     created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))

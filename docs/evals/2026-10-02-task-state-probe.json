@@ -1,0 +1,69 @@
+{
+  "dataset": "synthetic: 2024甲=100, 2024乙=200, 2025乙=900",
+  "cases": [
+    {
+      "mode": "without_state",
+      "history_messages": 10,
+      "required_filters_available": false,
+      "elapsed_ms": 7583,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "answer",
+          "answer": "我需要先确认一下\"最早那次查询\"具体指什么。目前我们的对话里只有几条\"无关对话\"的占位消息，没有实际的查询内容记录。\n\n为了准确回答，请告诉我您想查的是：\n- **哪个年份**的销售额（如 2022 / 2024）？\n- 还是**某个商品/公司**的销售额？\n\n您补充一下，我马上帮您统计。"
+        }
+      ]
+    },
+    {
+      "mode": "with_state",
+      "history_messages": 10,
+      "required_filters_available": true,
+      "elapsed_ms": 2420,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "我查一下历史记录。最早那次查询的条件是：**2024 年、关键词\"甲公司\"、按顾客公司（desc）分组**。我按这个条件重新统计一下销售额。"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "按最早那次查询的条件（2024 年 · 关键词\"甲公司\" · 按顾客公司分组）统计结果如下：\n\n| 顾客公司 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 甲公司 | 1 | 100.00 | 1 |\n\n**销售额（票面金额合计）：100.00**（数量合计为 1，明细 1 行）\n\n数据来源：已确认销售数据（ocr_rows，status=confirmed），过滤条件 year=2024、keyword=甲公司。\n\n注：原文未明确标注币种，故未标注货币单位。如需按其他年份或商品维度再看，告诉我即可。"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Context availability is not model task accuracy",
+    "Live mode is two one-shot diagnostics; no real invoice data",
+    "Latest successful query only; not full conversation summary"
+  ]
+}

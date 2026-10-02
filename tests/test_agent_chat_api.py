@@ -25,7 +25,7 @@ def chat_client(monkeypatch, tmp_path):
 
     monkeypatch.setattr(agent_chat, "UPLOAD_DIR", tmp_path)
 
-    def echo_input(message, history, image_path, preferences=None):
+    def echo_input(message, history, image_path, preferences=None, task_state=None):
         observed = {
             "message": message,
             "history": history,
@@ -33,6 +33,8 @@ def chat_client(monkeypatch, tmp_path):
         }
         if preferences is not None:
             observed["preferences"] = preferences
+        if task_state:
+            observed['task_state'] = task_state
         yield {"type": "answer", "answer": json.dumps(observed, ensure_ascii=False)}
 
     monkeypatch.setattr(agent_chat, "run_agent_events", echo_input)
@@ -53,6 +55,23 @@ def _answer(response):
 def _events(response):
     return [json.loads(part.removeprefix("data: "))
             for part in response.text.strip().split("\n\n")]
+
+
+def test_query_state_is_persisted_and_forwarded_after_reload(chat_client, monkeypatch):
+    state = {'tool': 'rag_summarize', 'year': '2024', 'keyword': '甲公司', 'group_by': 'desc'}
+    def queried(message, history, image_path, preferences=None, task_state=None):
+        if message == '首次查询':
+            yield {'type': 'task_state', 'state': state}
+        yield {'type': 'answer', 'answer': json.dumps(task_state or {})}
+    monkeypatch.setattr(chat_client.agent_chat_module, 'run_agent_events', queried)
+    first = chat_client.post('/api/agent/chat', json={'message': '首次查询'})
+    session = _events(first)[0]['session_id']
+    for _ in range(7):
+        chat_client.post('/api/agent/chat', json={'message': '无关消息', 'session_id': session})
+    resumed = chat_client.post('/api/agent/chat', json={'message': '继续最初查询', 'session_id': session})
+    assert _answer(resumed) == state
+    fresh = chat_client.post('/api/agent/chat', json={'message': '新查询'})
+    assert _answer(fresh) == {}
 
 
 def test_text_chat_forwards_message_and_history(chat_client):
@@ -142,7 +161,7 @@ def test_uploaded_image_turn_is_saved_as_text_context(chat_client):
 
 
 def test_failed_turn_is_not_saved_as_conversation_history(chat_client, monkeypatch):
-    def fail(_message, _history, _image_path, preferences=None):
+    def fail(_message, _history, _image_path, preferences=None, task_state=None):
         raise RuntimeError("模型暂不可用")
         yield  # Keep this a generator like the real Agent.
 

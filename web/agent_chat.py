@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from agent.agent import run_agent_events
 from agent.memory_commands import parse_memory_command
-from db import chat_memory, preference_memory
+from db import chat_memory, preference_memory, task_state
 
 router = APIRouter(tags=["agent-chat"])
 
@@ -93,7 +93,9 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
                 return
             preferences = preference_memory.list_preferences(profile_id)
             for ev in run_agent_events(message, context, image_path,
-                                       preferences=preferences):
+                                       preferences=preferences, task_state=task_state.load(session_id)):
+                if ev.get('type') == 'task_state':
+                    task_state.save(session_id, ev['state'])
                 if ev.get("type") == "answer":
                     chat_memory.save_turn(session_id, user_content, ev["answer"])
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
