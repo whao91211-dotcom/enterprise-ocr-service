@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 import matplotlib
 from langchain_core.tools import tool
@@ -51,10 +52,16 @@ def plot_chart(group_by: str = "item", chart_type: str = "bar",
         filter_query: 可选过滤关键词(商品名/公司名), 空=全部数据。
         year: 可选年份过滤, 如 "2024" 或 "2024年"。
     """
+    if group_by not in ('item', 'desc', 'date'):
+        return 'group_by 仅支持: item、desc、date'
+    if chart_type not in ('bar', 'pie'):
+        return '错误: chart_type 仅支持 bar、pie。'
     _setup_cjk_font()
     labels, values = _collect_data(group_by, filter_query, year)
     if not labels:
         return "（没有可绘图的已确认数据）"
+    if chart_type == 'pie' and (any(v < 0 for v in values) or sum(values) <= 0):
+        return '错误: 饼图要求各分组金额非负且金额合计大于0；可改用柱状图查看金额。'
 
     CHARTS_DIR.mkdir(parents=True, exist_ok=True)
     # 简单 slug 化文件名
@@ -63,18 +70,20 @@ def plot_chart(group_by: str = "item", chart_type: str = "bar",
     import re
 
     safe = re.sub(r"[\\/:*?\"<>|]", "", safe)[:40] or "chart"
-    out = CHARTS_DIR / f"{safe}.png"
+    out = CHARTS_DIR / f"{safe}_{chart_type}_{uuid4().hex}.png"
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    if chart_type == "pie":
-        ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-        ax.set_title(f"金额分布(按{group_by})")
-    else:
-        ax.bar(labels, values, color="#4C78A8")
-        ax.set_title(f"金额合计(按{group_by})")
-        ax.set_ylabel("金额")
-        ax.tick_params(axis="x", rotation=30)
-    fig.tight_layout()
-    fig.savefig(out, dpi=110)
-    plt.close(fig)
+    try:
+        if chart_type == "pie":
+            ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
+            ax.set_title(f"金额分布(按{group_by})")
+        else:
+            ax.bar(labels, values, color="#4C78A8")
+            ax.set_title(f"金额合计(按{group_by})")
+            ax.set_ylabel("金额")
+            ax.tick_params(axis="x", rotation=30)
+        fig.tight_layout()
+        fig.savefig(out, dpi=110)
+    finally:
+        plt.close(fig)
     return f"图表已生成: {out} (共 {len(labels)} 类)"

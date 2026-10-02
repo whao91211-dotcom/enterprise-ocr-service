@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import uuid
+import anyio
 from pathlib import Path
+from threading import Lock
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -24,6 +26,23 @@ router = APIRouter(tags=["agent-chat"])
 _ROOT = Path(__file__).resolve().parents[1]
 UPLOAD_DIR = _ROOT / "data" / "chatuploads"
 ALLOWED_EXT = {"png", "jpg", "jpeg", "webp", "bmp"}
+_ACTIVE_SESSIONS: set[str] = set()
+_SESSION_LOCK = Lock()
+
+
+class _ClosingStreamResponse(StreamingResponse):
+    """Close the sync generator after disconnect so its session gate is released."""
+
+    def __init__(self, iterator, **kwargs):
+        self._source_iterator = iterator
+        super().__init__(iterator, **kwargs)
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            with anyio.CancelScope(shield=True):
+                await anyio.to_thread.run_sync(self._source_iterator.close)
 
 
 class ChatIn(BaseModel):
@@ -78,14 +97,23 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
                     image_name: str | None = None):
     session_id, existed = chat_memory.resolve_session(requested_session_id)
     profile_id = preference_memory.resolve_profile(requested_profile_id)
-    context = chat_memory.load_messages(session_id, limit=10) if existed else history[-10:]
     user_content = message.strip()
     if image_path:
         user_content = f"{user_content} [已上传图片: {image_name}]".strip()
 
-    async def gen():
+    def gen():
+        # StreamingResponse runs synchronous iterators in its worker pool, so model
+        # and SQLite waits do not block the ASGI event loop.
+        with _SESSION_LOCK:
+            acquired = session_id not in _ACTIVE_SESSIONS
+            if acquired:
+                _ACTIVE_SESSIONS.add(session_id)
         try:
             yield f"data: {json.dumps({'type': 'session', 'session_id': session_id, 'profile_id': profile_id})}\n\n"
+            if not acquired:
+                yield f"data: {json.dumps({'type': 'error', 'code': 'session_busy', 'message': '本会话正在处理上一条请求，请等待完成后重试。'}, ensure_ascii=False)}\n\n"
+                return
+            context = chat_memory.load_messages(session_id, limit=10) if existed else history[-10:]
             command = parse_memory_command(message) if image_path is None else None
             if command is not None:
                 answer = _handle_memory_command(profile_id, *command)
@@ -103,8 +131,12 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': f'处理失败: {e}'}, ensure_ascii=False)}\n\n"
+        finally:
+            if acquired:
+                with _SESSION_LOCK:
+                    _ACTIVE_SESSIONS.discard(session_id)
 
-    return StreamingResponse(gen(), media_type="text/event-stream",
+    return _ClosingStreamResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache"})
 
 

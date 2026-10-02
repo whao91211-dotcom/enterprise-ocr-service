@@ -1,0 +1,317 @@
+{
+  "mode": "live HTTP synthetic workflow, seeded pending row (no OCR inference)",
+  "model": "deepseek-chat",
+  "cases": [
+    {
+      "id": "inspect_pending",
+      "question": "查看synthetic-pending.png的识别行和确认状态。",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "cb63f181d1754e7292a70bc3411d3b94",
+          "profile_id": "77197aca8a42419db97860c71f06808e"
+        },
+        {
+          "type": "intent",
+          "intent": "ocr_recognize"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll check the recognition rows and confirmation status for that file."
+        },
+        {
+          "type": "tool_call",
+          "name": "correct_show_rows",
+          "args": {
+            "file_name": "synthetic-pending.png"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "correct_show_rows",
+          "result": "单据 synthetic-pending.png 共 1 行:\n  [#4 待确认] 甲公司 于2024-06-01 从示例供货商 购 待核对商品×1 单价9999 税0 金额9999"
+        },
+        {
+          "type": "tool_call",
+          "name": "correct_list_docs",
+          "args": {}
+        },
+        {
+          "type": "tool_result",
+          "name": "correct_list_docs",
+          "result": "源文件 | 行数 | 已确认 | 状态\nsynthetic-2024-a.png | 1 | 1 | 全部已确认\nsynthetic-2024-b.png | 1 | 1 | 全部已确认\nsynthetic-2025-b.png | 1 | 1 | 全部已确认\nsynthetic-pending.png | 1 | 0 | 有待确认"
+        },
+        {
+          "type": "answer",
+          "answer": "**synthetic-pending.png 的识别行与确认状态**\n\n| 行 id | 状态 | 内容 |\n|---|---|---|\n| #4 | ⏳ 待确认 | 甲公司 于 2024-06-01 从 示例供货商 购 待核对商品 ×1，单价 9999，税 0，金额 9999 |\n\n**单据确认进度**\n\n| 源文件 | 行数 | 已确认 | 状态 |\n|---|---|---|---|\n| synthetic-2024-a.png | 1 | 1 | 全部已确认 |\n| synthetic-2024-b.png | 1 | 1 | 全部已确认 |\n| synthetic-2025-b.png | 1 | 1 | 全部已确认 |\n| **synthetic-pending.png** | 1 | 0 | **有待确认** |\n\n**说明**\n- synthetic-pending.png 目前仅 1 行识别结果（#4），状态为**待确认草稿**，尚未进入 RAG/统计口径。\n- 该行字段：日期 2024-06-01、顾客公司 甲公司、源公司 示例供货商、商品 待核对商品、数量 1、单价 9999、税率 0、票面金额 9999。\n- 如需纳入统计，请先核对无误后确认；若字段有误，可先修改再确认。"
+        }
+      ],
+      "checks": {
+        "answer": true,
+        "no_error_event": true,
+        "read_tool": true,
+        "still_pending": true
+      },
+      "passed": true,
+      "elapsed_ms": 9788
+    },
+    {
+      "id": "correct_pending",
+      "question": "我已核对原始单据，请将行ID 4 的amount改为2、price改为50、sum改为100；暂时不要确认。",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "cb63f181d1754e7292a70bc3411d3b94",
+          "profile_id": "77197aca8a42419db97860c71f06808e"
+        },
+        {
+          "type": "intent",
+          "intent": "correct"
+        },
+        {
+          "type": "tool_call",
+          "name": "correct_update_row",
+          "args": {
+            "row_id": 4,
+            "fields": "{\"amount\": \"2\", \"price\": \"50\", \"sum\": \"100\"}"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "correct_update_row",
+          "result": "✅ 行 #4 已更新: {'amount': '2', 'price': '50', 'sum': '100'}"
+        },
+        {
+          "type": "answer",
+          "answer": "**行 #4 已更新**\n\n| 字段 | 原值 | 新值 |\n|---|---|---|\n| amount（数量） | 1 | **2** |\n| price（单价） | 9999 | **50** |\n| sum（票面金额） | 9999 | **100** |\n\n其余字段（日期 2024-06-01、顾客公司 甲公司、源公司 示例供货商、商品 待核对商品、税率 0）保持不变。\n\n**状态：仍为待确认草稿**，未执行确认操作，因此该行暂不进入 RAG/统计口径。如需纳入统计，请告知我进行确认。"
+        }
+      ],
+      "checks": {
+        "answer": true,
+        "no_error_event": true,
+        "write_tool": true,
+        "correct_values": true,
+        "not_confirmed": true
+      },
+      "passed": true,
+      "elapsed_ms": 1927
+    },
+    {
+      "id": "exclude_pending",
+      "question": "请重新统计2024年全部公司已确认的总销售额。",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "cb63f181d1754e7292a70bc3411d3b94",
+          "profile_id": "77197aca8a42419db97860c71f06808e"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":2,\"total_amount\":2.0,\"total_sum\":300.0},\"total_groups\":2,\"returned_groups\":2,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"乙公司\",1.0,200.0,1],[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2024 年全部公司已确认销售额统计**\n\n| 顾客公司 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 乙公司 | 1 | 200 | 1 |\n| 甲公司 | 1 | 100 | 1 |\n| **合计** | **2** | **300** | **2** |\n\n**结论**\n- 2024 年已确认总销售额（票面金额合计）：**300**\n- 数量合计：2；明细行数：2（非单据数）\n- 数据来源：已确认（confirmed）销售数据，按顾客公司分组，年份过滤 2024。\n\n**说明**\n- 该统计仅含**已确认**记录；synthetic-pending.png 的行 #4（甲公司，2024-06-01，金额 100）仍为**待确认草稿**，未计入本次统计。\n- 原文未明确提供币种，故不标注货币单位。"
+        }
+      ],
+      "checks": {
+        "answer": true,
+        "no_error_event": true,
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "tool_total": true
+      },
+      "passed": true,
+      "elapsed_ms": 2554
+    },
+    {
+      "id": "confirm_and_query",
+      "question": "我已核对无误，请确认synthetic-pending.png，再查询2024年全部公司已确认总销售额。",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "cb63f181d1754e7292a70bc3411d3b94",
+          "profile_id": "77197aca8a42419db97860c71f06808e"
+        },
+        {
+          "type": "intent",
+          "intent": "ocr_recognize"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll confirm the document first, then re-run the 2024 statistics."
+        },
+        {
+          "type": "tool_call",
+          "name": "correct_confirm",
+          "args": {
+            "file_name": "synthetic-pending.png",
+            "reviewer": "manual"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "correct_confirm",
+          "result": "✅ synthetic-pending.png 的 1 行已确认(操作人: manual)"
+        },
+        {
+          "type": "llm_text",
+          "text": "确认成功，现在重新统计 2024 年数据。"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":3,\"total_amount\":4.0,\"total_sum\":400.0},\"total_groups\":2,\"returned_groups\":2,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",3.0,200.0,2],[\"乙公司\",1.0,200.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**synthetic-pending.png 已确认**（操作人：manual，1 行），该行现已进入统计口径。\n\n**2024 年全部公司已确认销售额统计（更新后）**\n\n| 顾客公司 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 甲公司 | 3 | 200 | 2 |\n| 乙公司 | 1 | 200 | 1 |\n| **合计** | **4** | **400** | **3** |\n\n**结论**\n- 2024 年已确认总销售额（票面金额合计）：**400**\n- 数量合计：4；明细行数：3（非单据数）\n- 数据来源：已确认（confirmed）销售数据，按顾客公司分组，年份过滤 2024。\n\n**对比上次**\n- 上次（未含待确认行）：金额合计 300、数量合计 2、行数 2。\n- 本次新增 synthetic-pending.png 行 #4（甲公司，2024-06-01，数量 2、金额 100）后：金额合计 400、数量合计 4、行数 3。\n\n**说明**\n- 原文未明确提供币种，故不标注货币单位。"
+        }
+      ],
+      "checks": {
+        "answer": true,
+        "no_error_event": true,
+        "confirmation_tool": true,
+        "now_confirmed": true,
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "tool_total": true
+      },
+      "passed": true,
+      "elapsed_ms": 3737
+    },
+    {
+      "id": "draw_chart",
+      "question": "请画2024年全部公司的销售额柱状图，按顾客公司分组。",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "cb63f181d1754e7292a70bc3411d3b94",
+          "profile_id": "77197aca8a42419db97860c71f06808e"
+        },
+        {
+          "type": "intent",
+          "intent": "plot_chart"
+        },
+        {
+          "type": "tool_call",
+          "name": "plot_chart",
+          "args": {
+            "group_by": "desc",
+            "chart_type": "bar",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "plot_chart",
+          "result": "图表已生成: C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\artifact-flow-final-2026-10-02\\charts\\desc_2024_bar_3e9042517bcc479c8ba61faca076ace4.png (共 2 类)"
+        },
+        {
+          "type": "answer",
+          "answer": "**2024 年全部公司销售额柱状图已生成**\n\n- 分组维度：顾客公司（desc）\n- 图表类型：柱状图（bar）\n- 年份过滤：2024\n- 分组数：2 类（甲公司、乙公司）\n- 文件路径：`C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\artifact-flow-final-2026-10-02\\charts\\desc_2024_bar_3e9042517bcc479c8ba61faca076ace4.png`\n\n**对应数据（票面金额合计）**\n\n| 顾客公司 | 票面金额合计 |\n|---|---|\n| 甲公司 | 200 |\n| 乙公司 | 200 |\n\n数据来源：已确认（confirmed）销售数据，年份 2024。原文未明确提供币种，故不标注货币单位。"
+        }
+      ],
+      "checks": {
+        "answer": true,
+        "no_error_event": true,
+        "chart_tool_scope": true,
+        "png_exists": true
+      },
+      "passed": true,
+      "elapsed_ms": 3907
+    },
+    {
+      "id": "generate_report",
+      "question": "请生成2024年全部公司的Word销售统计报告，并包含按顾客公司分组的统计图。",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "cb63f181d1754e7292a70bc3411d3b94",
+          "profile_id": "77197aca8a42419db97860c71f06808e"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "tool_call",
+          "name": "generate_report",
+          "args": {
+            "year": "2024",
+            "include_chart": true,
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "generate_report",
+          "result": "报告已生成: C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\artifact-flow-final-2026-10-02\\reports\\销售报告_2024_e276776669ea4058bd7bc9210b48436b.docx（共 3 张单据, 3 行记录）"
+        },
+        {
+          "type": "answer",
+          "answer": "**2024 年全部公司 Word 销售统计报告已生成**\n\n- 文件路径：`C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\artifact-flow-final-2026-10-02\\reports\\销售报告_2024_e276776669ea4058bd7bc9210b48436b.docx`\n- 年份过滤：2024\n- 分组维度：顾客公司（desc）\n- 嵌入统计图：是\n- 覆盖范围：3 张单据、3 行记录\n\n**报告数据口径（已确认记录）**\n\n| 顾客公司 | 票面金额合计 |\n|---|---|\n| 甲公司 | 200 |\n| 乙公司 | 200 |\n| **合计** | **400** |\n\n数量合计 4，明细行数 3。数据来源：已确认（confirmed）销售数据，年份 2024。原文未明确提供币种，故不标注货币单位。"
+        }
+      ],
+      "checks": {
+        "answer": true,
+        "no_error_event": true,
+        "report_tool_scope": true,
+        "docx_exists": true,
+        "report_scope_count_total": true,
+        "embedded_chart": true
+      },
+      "passed": true,
+      "elapsed_ms": 4108
+    }
+  ],
+  "artifacts": [
+    "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\artifact-flow-final-2026-10-02\\charts\\desc_2024_bar_3e9042517bcc479c8ba61faca076ace4.png",
+    "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\artifact-flow-final-2026-10-02\\reports\\销售报告_2024_e276776669ea4058bd7bc9210b48436b.docx"
+  ],
+  "limits": [
+    "One workflow; not representative end-to-end success rate",
+    "OCR recognition is not tested"
+  ]
+}

@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from langchain_core.tools import tool
 
@@ -51,9 +52,9 @@ def generate_report(
     by_item = crud.summarize_confirmed("item", year=year or None)
     by_desc = crud.summarize_confirmed("desc", year=year or None)
     by_date = crud.summarize_confirmed("date", year=year or None)
-    docs = crud.all_docs_with_stats()
-    # 有效单据(有确认行)
-    confirmed_docs = [d for d in docs if d.get("confirmed_count", 0) > 0]
+    confirmed_docs = crud.confirmed_document_count(year=year or None)
+    artifact_id = uuid4().hex
+    chart_warning = ''
 
     title_txt = "销售数据统计报告"
     subtitle = f"（年份: {year}）" if year else "（全部年份）"
@@ -76,7 +77,7 @@ def generate_report(
     overview.style = "Light Grid Accent 1"
     rows = [
         ("统计范围", subtitle.strip("（）") or "全部已确认数据"),
-        ("涉及单据", f"{len(confirmed_docs)} 张"),
+        ("涉及单据", f"{confirmed_docs} 张"),
         ("确认记录行数", f"{total_rows} 行"),
         ("总销售额", _fmt_money(sum(g["total"] for g in by_item))),
         ("总销售数量", f"{sum(g['amount'] for g in by_item):g}"),
@@ -110,6 +111,8 @@ def generate_report(
 
     # 图表嵌入
     if include_chart:
+        fig = None
+        chart_png = None
         try:
             from tools.plot_tool import _collect_data, _setup_cjk_font
 
@@ -126,14 +129,20 @@ def generate_report(
                 ax.set_title(f"金额合计(按{_LABEL.get(group_by, group_by)})")
                 ax.tick_params(axis="x", rotation=30)
                 fig.tight_layout()
-                chart_png = REPORTS_DIR / "_report_chart.png"
+                chart_png = REPORTS_DIR / f"_report_chart_{artifact_id}.png"
                 fig.savefig(chart_png, dpi=110)
                 plt.close(fig)
                 doc.add_heading("五、统计图", level=1)
                 doc.add_picture(str(chart_png), width=Pt(420))
                 chart_png.unlink(missing_ok=True)
         except Exception:  # noqa: BLE001  图表失败不影响报告主体
-            pass
+            chart_warning = '图表未生成，统计表已保留；请核对绘图条件后重新生成。'
+            doc.add_paragraph(chart_warning)
+        finally:
+            if fig is not None:
+                plt.close(fig)
+            if chart_png is not None:
+                chart_png.unlink(missing_ok=True)
 
     doc.add_paragraph()
     note = doc.add_paragraph()
@@ -143,6 +152,6 @@ def generate_report(
 
     # ---- 存盘 ----
     safe_year = re.sub(r"[^\w]", "", year) if year else "all"
-    fname = REPORTS_DIR / f"销售报告_{safe_year}.docx"
+    fname = REPORTS_DIR / f"销售报告_{safe_year}_{artifact_id}.docx"
     doc.save(fname)
-    return f"报告已生成: {fname}（共 {len(confirmed_docs)} 张单据, {total_rows} 行记录）"
+    return f"报告已生成: {fname}（共 {confirmed_docs} 张单据, {total_rows} 行记录）" + (f'。{chart_warning}' if chart_warning else '')

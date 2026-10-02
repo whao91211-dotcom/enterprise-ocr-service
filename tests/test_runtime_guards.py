@@ -92,6 +92,70 @@ def test_model_timeout_is_reported(runtime):
     assert '超时' in events[-1]['answer']
 
 
+def test_timeout_slots_are_retained_then_released(monkeypatch):
+    import time
+    from threading import BoundedSemaphore, Event
+    from agent import runtime_guard
+    slots = BoundedSemaphore(4)
+    release = Event()
+    monkeypatch.setattr(runtime_guard, '_INFLIGHT', slots)
+    try:
+        for _ in range(4):
+            with pytest.raises(runtime_guard.CallTimeout):
+                runtime_guard.bounded_call(lambda: release.wait(2), .01)
+        with pytest.raises(RuntimeError, match='仍有调用'):
+            runtime_guard.bounded_call(lambda: 'must not start', .01)
+    finally:
+        release.set()
+        deadline = time.monotonic()+1
+        while slots._value != 4 and time.monotonic() < deadline:
+            time.sleep(.005)
+    assert slots._value == 4
+    assert runtime_guard.bounded_call(lambda: 'recovered', .1) == 'recovered'
+
+
+def test_fabricated_report_claim_requires_real_tool_result(runtime, tmp_path):
+    from langchain_core.messages import AIMessage
+    path = tmp_path/'real-report.docx'
+
+    class Model(ScriptedModel):
+        def invoke(self, messages):
+            self.steps += 1
+            if self.steps == 1:
+                return AIMessage(content='报告已生成: C:/fabricated/report.docx')
+            if self.steps == 2:
+                return AIMessage(content='', tool_calls=[call('generate_report', {}, 'create')])
+            return AIMessage(content=f'报告已生成: {path}')
+
+    class Report:
+        def invoke(self, arguments):
+            path.write_bytes(b'created-by-tool')
+            return f'报告已生成: {path}（共 1 张单据, 1 行记录）'
+
+    with patch.object(runtime, 'get_llm', return_value=Model()), patch.dict(runtime._TOOL_BY_NAME, {'generate_report': Report()}):
+        events = list(runtime.run_agent_events('生成Word报告'))
+    assert path.is_file()
+    assert sum(e['type'] == 'tool_call' for e in events) == 1
+    assert 'C:/fabricated/report.docx' not in events[-1]['answer']
+
+
+@pytest.mark.parametrize('claim', ['报告已生成: C:/fabricated/report.docx', '2024年销售额柱状图已生成', '统计饼图已生成'])
+def test_repeated_unverified_file_claim_stops_without_false_success(runtime, claim):
+    from langchain_core.messages import AIMessage
+
+    class Model(ScriptedModel):
+        def invoke(self, messages):
+            self.steps += 1
+            return AIMessage(content=claim)
+
+    model = Model()
+    with patch.object(runtime, 'get_llm', return_value=model):
+        events = list(runtime.run_agent_events('生成Word报告'))
+    assert model.steps == 2
+    assert '未生成' in events[-1]['answer']
+    assert 'fabricated' not in events[-1]['answer']
+
+
 def test_read_parameter_can_be_corrected(runtime):
     class Query:
         def invoke(self, args):

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import json
+import re
 import config
 from agent.runtime_guard import CallTimeout, ToolOutcome, bounded_call
 from agent.field_semantics import FIELD_RULES
@@ -92,6 +93,11 @@ EVENTS_SYSTEM_PROMPT = """你是一个企业文档处理智能体。根据用户
 规则:
 - 只统计已确认(confirmed)数据; 未确认时说明"待确认草稿"。
 - 不要编造; 用中文简洁结构化回答, 给出统计结论与数据来源。
+- 无匹配也是查询结论，必须来自对应条件的查询工具结果；成功条件快照不包含数据。
+  用户改变年份或关键词时必须重新查询，不能推断无匹配。文件完成声明必须有本轮生成工具的成功结果。
+- 只读查询遇到明确临时故障时，应保持原条件重试一次；参数错误先修正再尝试。
+  若仍失败就停止并说明，不把工具失败当成无匹配记录或金额为零。
+  OCR入库、修改、确认、绘图或报告生成失败时不要自行重复执行，应先核对执行状态。
 """
 
 
@@ -237,6 +243,8 @@ def run_agent_events(
     failure_streak = 0
     repeated_failures = 0
     last_failure = None
+    artifact_proofs: set[str] = set()
+    corrected_file_claim = False
     for _step in range(8):
         try:
             resp = bounded_call(lambda: llm_tools.invoke(messages),
@@ -248,6 +256,19 @@ def run_agent_events(
         content = getattr(resp, "content", "") or ""
         tool_calls = getattr(resp, "tool_calls", None) or []
         if not tool_calls:
+            # Only gate positive completion claims, never explanations or explicit failures.
+            claimed_artifacts = set()
+            if re.search(r'(?:报告|文档|Word)[^\n。]{0,35}(?:已生成|生成成功)|(?:已生成|生成成功)[^\n。]{0,35}(?:报告|文档|Word)', str(content), re.I):
+                claimed_artifacts.add('generate_report')
+            if re.search(r'(?:图表|统计图|柱状图|饼图)[^\n。]{0,35}(?:已生成|生成成功)|(?:已生成|生成成功)[^\n。]{0,35}(?:图表|统计图|柱状图|饼图)', str(content)):
+                claimed_artifacts.add('plot_chart')
+            if claimed_artifacts - artifact_proofs:
+                if corrected_file_claim:
+                    yield {'type': 'answer', 'answer': '文件未生成：本轮没有可验证的生成工具成功结果，本次任务已停止。'}
+                    return
+                corrected_file_claim = True
+                messages.append(SystemMessage(content='本轮没有可验证的文件生成结果。不得声称文件已生成或编造路径。若用户要求生成，请调用相应工具；否则如实说明尚未生成。'))
+                continue
             yield {"type": "answer", "answer": content or "（模型未返回内容）"}
             return
         if content:
@@ -279,6 +300,11 @@ def run_agent_events(
                 return
             yield {"type": "tool_result", "name": tc.get("name", ""), "result": result[:2000]}
             messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
+            prefix = {'generate_report': '报告已生成:', 'plot_chart': '图表已生成:'}.get(tc.get('name'))
+            if prefix and result.startswith(prefix) and not getattr(result, 'failed', False):
+                artifact_path = result[len(prefix):].split('（共', 1)[0].split(' (共', 1)[0].split('\n', 1)[0].strip()
+                if Path(artifact_path).is_file():
+                    artifact_proofs.add(tc['name'])
             state = from_tool_result(tc.get('name'), result)
             if state is not None:
                 yield {'type': 'task_state', 'state': state}

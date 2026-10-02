@@ -43,6 +43,9 @@ def save_preference(profile_id: str, content: str) -> str:
     conn = get_connection()
     try:
         with conn:
+            # Reserve the write transaction before reading the count/duplicate.
+            # Concurrent sessions sharing a profile must not exceed the limit.
+            conn.execute("BEGIN IMMEDIATE")
             if conn.execute(
                 "SELECT 1 FROM memory_preferences WHERE profile_id = ? AND content = ?",
                 (profile_id, content),

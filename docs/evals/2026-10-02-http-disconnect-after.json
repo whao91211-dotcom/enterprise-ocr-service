@@ -1,0 +1,246 @@
+{
+  "mode": "actual uvicorn, scripted model + real tools/SQLite",
+  "cases": [
+    {
+      "id": "health_during_model_wait",
+      "checks": {
+        "health_responds_under_100ms": true,
+        "chat_completed": true
+      },
+      "passed": true,
+      "evidence": {
+        "health_seconds": 0.003712800011271611
+      }
+    },
+    {
+      "id": "four_distinct_sessions",
+      "checks": {
+        "all_answers": true,
+        "sessions_isolated": true,
+        "correct_totals": true,
+        "requests_overlap": true
+      },
+      "passed": true,
+      "evidence": {
+        "elapsed_seconds": 0.6160175000259187,
+        "maximum_overlapping_model_waits": 4,
+        "model_wait_intervals_ns": [
+          [
+            185925655281400,
+            185925857889000
+          ],
+          [
+            185925633699700,
+            185925835657200
+          ],
+          [
+            185925631616900,
+            185925834728400
+          ],
+          [
+            185925661478000,
+            185925864913300
+          ]
+        ],
+        "answers": [
+          {
+            "request_id": "parallel-0",
+            "history_ids": [
+              "seed-0"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 100.0
+            }
+          },
+          {
+            "request_id": "parallel-1",
+            "history_ids": [
+              "seed-1"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 900.0
+            }
+          },
+          {
+            "request_id": "parallel-2",
+            "history_ids": [
+              "seed-2"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 100.0
+            }
+          },
+          {
+            "request_id": "parallel-3",
+            "history_ids": [
+              "seed-3"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 900.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "same_session_competition",
+      "checks": {
+        "one_request_completed": true,
+        "one_request_rejected_busy": true,
+        "only_completed_turn_saved": true
+      },
+      "passed": true,
+      "evidence": {
+        "completed": 1,
+        "busy": 1,
+        "saved_messages": 4,
+        "outputs": [
+          [
+            {
+              "type": "session",
+              "session_id": "2565b89d1a1747b9a10b7a89b8404e9f",
+              "profile_id": "145834efdaa94278be36a2094f00d984"
+            },
+            {
+              "type": "intent",
+              "intent": "chat"
+            },
+            {
+              "type": "tool_call",
+              "name": "rag_summarize",
+              "args": {
+                "group_by": "desc",
+                "year": "2024",
+                "keyword": "甲公司"
+              }
+            },
+            {
+              "type": "tool_result",
+              "name": "rag_summarize",
+              "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+            },
+            {
+              "type": "task_state",
+              "state": {
+                "tool": "rag_summarize",
+                "year": "2024",
+                "keyword": "甲公司",
+                "group_by": "desc"
+              }
+            },
+            {
+              "type": "answer",
+              "answer": "{\"request_id\": \"same-0\", \"history_ids\": [\"same-seed\"], \"summary\": {\"total_rows\": 1, \"total_amount\": 1.0, \"total_sum\": 100.0}}"
+            }
+          ],
+          [
+            {
+              "type": "session",
+              "session_id": "2565b89d1a1747b9a10b7a89b8404e9f",
+              "profile_id": "87ee4970c08142fe98670f62d44e7cfc"
+            },
+            {
+              "type": "error",
+              "code": "session_busy",
+              "message": "本会话正在处理上一条请求，请等待完成后重试。"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": "client_disconnect_releases_session",
+      "checks": {
+        "retry_completed": true,
+        "session_not_stuck_busy": true
+      },
+      "passed": true,
+      "evidence": {
+        "retry_events": [
+          {
+            "type": "session",
+            "session_id": "ef0ee727ca864f7284473171ab6bd345",
+            "profile_id": "72dcfc87cb3f4515bc6cf45ed0c71d12"
+          },
+          {
+            "type": "intent",
+            "intent": "chat"
+          },
+          {
+            "type": "tool_call",
+            "name": "rag_summarize",
+            "args": {
+              "group_by": "desc",
+              "year": "2024",
+              "keyword": "甲公司"
+            }
+          },
+          {
+            "type": "tool_result",
+            "name": "rag_summarize",
+            "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+          },
+          {
+            "type": "task_state",
+            "state": {
+              "tool": "rag_summarize",
+              "year": "2024",
+              "keyword": "甲公司",
+              "group_by": "desc"
+            }
+          },
+          {
+            "type": "answer",
+            "answer": "{\"request_id\": \"disconnect-retry\", \"history_ids\": [\"disconnect-seed\"], \"summary\": {\"total_rows\": 1, \"total_amount\": 1.0, \"total_sum\": 100.0}}"
+          }
+        ],
+        "limit": "Checks gate release, not cancellation of underlying work"
+      }
+    },
+    {
+      "id": "bounded_soak",
+      "checks": {
+        "all_history_and_totals_correct": true,
+        "all_turns_persisted": true,
+        "sqlite_integrity": true
+      },
+      "passed": true,
+      "evidence": {
+        "requests": 100,
+        "failures": [],
+        "saved_message_count": 200,
+        "elapsed_seconds": 15.635598499997286,
+        "resources_before": {
+          "ok": true,
+          "threads": 5,
+          "rss_bytes": 167718912
+        },
+        "resources_after": {
+          "ok": true,
+          "threads": 2,
+          "rss_bytes": 167649280
+        },
+        "resource_samples": [
+          {
+            "requests": 100,
+            "ok": true,
+            "threads": 2,
+            "rss_bytes": 167649280
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Offline model stimuli; not real provider latency or throughput",
+    "Bounded same-process local test; not long-term uptime proof"
+  ]
+}

@@ -1,0 +1,575 @@
+{
+  "dataset": "synthetic 2024甲100/乙200, 2025乙900",
+  "model": "deepseek-chat",
+  "limits": [
+    "Two runs per fault; not population recovery rate",
+    "Fault injected in tools; model actions are autonomous",
+    "No real OCR quality measurement"
+  ],
+  "cases": [
+    {
+      "id": "transient_read",
+      "repeat": 1,
+      "question": "请统计2024年甲公司的销售额，按公司分组，使用已确认数据。",
+      "injection_counts": {
+        "invocations": 2,
+        "injected": 1
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "tool_total": true,
+        "bounded_recovery": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "2dbe705a9b2d4367ae294900256097b6",
+          "profile_id": "5c3b079fae664c909f7536c0a54d210b"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "工具执行出错: temporary synthetic SQL service failure"
+        },
+        {
+          "type": "llm_text",
+          "text": "The query hit a temporary failure. Per procedure, I'll retry once with the same conditions."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2024年 甲公司 销售额统计（按公司分组，已确认数据）**\n\n| 分组 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 甲公司 | 1 | 100.00 | 1 |\n\n**结论**\n- 2024年已确认数据中，甲公司匹配到 **1 条明细行**，票面金额合计 **100.00**（数量合计为 1，非金额）。\n- 数据来源：`ocr_rows` 表，状态 = confirmed；过滤条件：keyword=甲公司，year=2024。\n\n说明：金额以票面金额（sum）为准，未使用数量×单价推算；原文未明确币种，故未标注货币单位。"
+        }
+      ],
+      "elapsed_ms": 7970
+    },
+    {
+      "id": "invalid_group",
+      "repeat": 1,
+      "question": "请统计2024年甲公司的销售额，按公司分组，使用已确认数据。",
+      "injection_counts": {
+        "invocations": 2,
+        "injected": 1
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "tool_total": true,
+        "bounded_recovery": true,
+        "parameter_repaired": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "83e1c1b67f3d451ba6e884bd8c6d18ed",
+          "profile_id": "0b85d728521b451abda6c468327586e8"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司, grouped by company."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "unsupported",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "group_by 仅支持: ['date', 'desc', 'item']（收到 unsupported）"
+        },
+        {
+          "type": "llm_text",
+          "text": "I used an invalid group_by value. Correcting to `desc` (顾客公司) as requested:"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2024年 甲公司 销售额统计（已确认数据）**\n\n| 分组 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 甲公司 | 1 | 100.00 | 1 |\n\n**结论：**\n- 2024年已确认数据中，甲公司共 **1 条明细行**，票面金额合计 **100.00**（数量合计为 1，非金额）。\n- 数据来源：已确认销售数据表（ocr_rows，status=confirmed），过滤条件：年份=2024、关键词=甲公司，按顾客公司（desc）分组。\n\n说明：金额以票面金额（sum）为准，未使用数量×单价推算；原文未明确币种，故未标注货币单位。"
+        }
+      ],
+      "elapsed_ms": 3592
+    },
+    {
+      "id": "permanent_read",
+      "repeat": 1,
+      "question": "请统计2024年甲公司的销售额，按公司分组，使用已确认数据。",
+      "injection_counts": {
+        "invocations": 2,
+        "injected": 2
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "bounded_stop": true,
+        "failure_disclosed": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "6ed3539bf04e42939eab39d02da5e4b1",
+          "profile_id": "eb57f34a337b4ad0826f21ade3ea3af6"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司, grouped by company."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "工具执行出错: temporary synthetic SQL service failure"
+        },
+        {
+          "type": "llm_text",
+          "text": "The query hit a temporary service failure. Per protocol, I'll retry once with the same conditions."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "工具执行出错: temporary synthetic SQL service failure"
+        },
+        {
+          "type": "answer",
+          "answer": "工具调用持续失败，本次任务已停止。最后错误：工具执行出错: temporary synthetic SQL service failure。请核对参数或服务状态。"
+        }
+      ],
+      "elapsed_ms": 2335
+    },
+    {
+      "id": "ocr_offline",
+      "repeat": 1,
+      "question": "请识别并入库此销售单据，图片路径为 C:/synthetic-eval/invoice.png。",
+      "injection_counts": {
+        "invocations": 1,
+        "injected": 1
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "write_not_retried": true,
+        "no_ocr_database_write": true,
+        "service_failure_disclosed": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "492e7a55c3a543bcac5a26c764c28aac",
+          "profile_id": "e1814bad496e40bcb576a1a019a3ef03"
+        },
+        {
+          "type": "intent",
+          "intent": "ocr_recognize"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll recognize the sales document and add it to the database."
+        },
+        {
+          "type": "tool_call",
+          "name": "ocr_recognize_chat",
+          "args": {
+            "image_path": "C:/synthetic-eval/invoice.png"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "ocr_recognize_chat",
+          "result": "工具执行出错: OCR服务已离线，请勿重复入库"
+        },
+        {
+          "type": "answer",
+          "answer": "操作未能确认成功：工具执行出错: OCR服务已离线，请勿重复入库。本次任务已停止，请先核对状态，避免重复写入。"
+        }
+      ],
+      "elapsed_ms": 868
+    },
+    {
+      "id": "transient_read",
+      "repeat": 2,
+      "question": "请统计2024年甲公司的销售额，按公司分组，使用已确认数据。",
+      "injection_counts": {
+        "invocations": 2,
+        "injected": 1
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "tool_total": true,
+        "bounded_recovery": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "ed365fc38a274817b59a0ff31d4445ca",
+          "profile_id": "7bff345762a140a7b6fa24274c6b0a83"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司, grouped by company."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "工具执行出错: temporary synthetic SQL service failure"
+        },
+        {
+          "type": "llm_text",
+          "text": "The query hit a temporary service failure. Per protocol, I'll retry once with the same conditions."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2024年 甲公司 销售额统计（按公司分组，已确认数据）**\n\n| 公司 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 甲公司 | 1 | 100.00 | 1 |\n\n**结论**\n- 2024年已确认数据中，甲公司匹配到 **1 条明细行**。\n- **票面金额合计：100.00**（total_sum）\n- 数量合计：1（total_amount，为数量，非金额）\n\n**数据来源**：ocr_rows 表，status = confirmed；过滤条件 keyword=甲公司、year=2024；分组维度 desc（顾客公司）。\n\n说明：金额以已确认票面金额（sum）为准，未使用数量×单价推算；原文未明确币种，故未标注货币单位。"
+        }
+      ],
+      "elapsed_ms": 5613
+    },
+    {
+      "id": "invalid_group",
+      "repeat": 2,
+      "question": "请统计2024年甲公司的销售额，按公司分组，使用已确认数据。",
+      "injection_counts": {
+        "invocations": 2,
+        "injected": 1
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "tool_total": true,
+        "bounded_recovery": true,
+        "parameter_repaired": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "085e57c1aa19495891a4224d31403091",
+          "profile_id": "ab9e47310db441bda692716a4baae0a7"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by \"甲公司\", grouped by company."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "unsupported",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "group_by 仅支持: ['date', 'desc', 'item']（收到 unsupported）"
+        },
+        {
+          "type": "llm_text",
+          "text": "I used an invalid group_by value. Correcting to `desc` (顾客公司) and retrying."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2024年 甲公司 销售额统计（按公司分组，已确认数据）**\n\n| 分组（顾客公司） | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 甲公司 | 1 | 100.00 | 1 |\n\n**结论**\n- 2024年匹配\"甲公司\"的已确认记录共 **1 条明细行**（非单据数）。\n- 票面金额合计：**100.00**（未标注币种，原文未明确提供货币单位）。\n- 数量合计：1（此为数量，非金额）。\n\n**数据来源**：ocr_rows 表，status=confirmed；过滤条件 keyword=甲公司、year=2024；分组维度 desc（顾客公司）。"
+        }
+      ],
+      "elapsed_ms": 2603
+    },
+    {
+      "id": "permanent_read",
+      "repeat": 2,
+      "question": "请统计2024年甲公司的销售额，按公司分组，使用已确认数据。",
+      "injection_counts": {
+        "invocations": 2,
+        "injected": 2
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "bounded_stop": true,
+        "failure_disclosed": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "8b55b382143442da833b4a72a72829af",
+          "profile_id": "43a20e6047594d348ab9edf6c3257f13"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "工具执行出错: temporary synthetic SQL service failure"
+        },
+        {
+          "type": "llm_text",
+          "text": "The query hit a temporary failure. Per protocol, I'll retry once with the same conditions."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "工具执行出错: temporary synthetic SQL service failure"
+        },
+        {
+          "type": "answer",
+          "answer": "工具调用持续失败，本次任务已停止。最后错误：工具执行出错: temporary synthetic SQL service failure。请核对参数或服务状态。"
+        }
+      ],
+      "elapsed_ms": 1709
+    },
+    {
+      "id": "ocr_offline",
+      "repeat": 2,
+      "question": "请识别并入库此销售单据，图片路径为 C:/synthetic-eval/invoice.png。",
+      "injection_counts": {
+        "invocations": 1,
+        "injected": 1
+      },
+      "checks": {
+        "fault_exercised": true,
+        "has_answer": true,
+        "no_runtime_error_event": true,
+        "write_not_retried": true,
+        "no_ocr_database_write": true,
+        "service_failure_disclosed": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "a8651bf7499b4e9a9f81ef046d0d48aa",
+          "profile_id": "771f6062a1d5446dbb42672c2490f347"
+        },
+        {
+          "type": "intent",
+          "intent": "ocr_recognize"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll recognize and import this sales document."
+        },
+        {
+          "type": "tool_call",
+          "name": "ocr_recognize_chat",
+          "args": {
+            "image_path": "C:/synthetic-eval/invoice.png"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "ocr_recognize_chat",
+          "result": "工具执行出错: OCR服务已离线，请勿重复入库"
+        },
+        {
+          "type": "answer",
+          "answer": "操作未能确认成功：工具执行出错: OCR服务已离线，请勿重复入库。本次任务已停止，请先核对状态，避免重复写入。"
+        }
+      ],
+      "elapsed_ms": 1492
+    }
+  ]
+}

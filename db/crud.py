@@ -298,3 +298,17 @@ def confirmed_count(keyword: str | None = None, year: str | None = None) -> int:
         return int(n)
     finally:
         conn.close()
+
+
+def confirmed_document_count(year: str | None = None) -> int:
+    """Count distinct documents under the same confirmed/year scope as totals."""
+    conn = get_connection()
+    try:
+        where, params = _where_params(None, year)
+        row = conn.execute(
+            f"SELECT COUNT(DISTINCT r.doc_id) c FROM ocr_rows r "
+            f"JOIN documents d ON d.id=r.doc_id WHERE {where}", params
+        ).fetchone()
+        return int(row['c'])
+    finally:
+        conn.close()

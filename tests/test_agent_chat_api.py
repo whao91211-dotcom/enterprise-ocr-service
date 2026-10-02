@@ -57,6 +57,39 @@ def _events(response):
             for part in response.text.strip().split("\n\n")]
 
 
+def test_same_session_busy_request_is_not_executed_or_saved(chat_client, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    seed = chat_client.post('/api/agent/chat', json={'message': 'seed'})
+    sid = _events(seed)[0]['session_id']
+    started, release = Event(), Event()
+    observed = []
+
+    def controlled(message, history, image_path, **kwargs):
+        observed.append(message)
+        if message == 'slow':
+            started.set()
+            assert release.wait(5)
+        yield {'type': 'answer', 'answer': json.dumps({'history': history})}
+
+    monkeypatch.setattr(chat_client.agent_chat_module, 'run_agent_events', controlled)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(TestClient(chat_client.app).post, '/api/agent/chat',
+                             json={'message': 'slow', 'session_id': sid})
+        try:
+            assert started.wait(5)
+            competing = chat_client.post('/api/agent/chat', json={'message': 'competing', 'session_id': sid})
+            assert any(e['type'] == 'error' and e.get('code') == 'session_busy' for e in _events(competing))
+        finally:
+            release.set()
+            future.result(timeout=5)
+    assert observed == ['slow']
+    messages = chat_client.get(f'/api/agent/sessions/{sid}').json()['messages']
+    assert [m['content'] for m in messages if m['role'] == 'user'] == ['seed', 'slow']
+    resumed = chat_client.post('/api/agent/chat', json={'message': 'after', 'session_id': sid})
+    assert _answer(resumed)['history'] == messages
+
+
 def test_query_state_is_persisted_and_forwarded_after_reload(chat_client, monkeypatch):
     state = {'tool': 'rag_summarize', 'year': '2024', 'keyword': '甲公司', 'group_by': 'desc'}
     def queried(message, history, image_path, preferences=None, task_state=None):

@@ -1,0 +1,202 @@
+{
+  "mode": "actual uvicorn, scripted model + real tools/SQLite",
+  "cases": [
+    {
+      "id": "health_during_model_wait",
+      "checks": {
+        "health_responds_under_100ms": true,
+        "chat_completed": true
+      },
+      "passed": true,
+      "evidence": {
+        "health_seconds": 0.005202000000281259
+      }
+    },
+    {
+      "id": "four_distinct_sessions",
+      "checks": {
+        "all_answers": true,
+        "sessions_isolated": true,
+        "correct_totals": true,
+        "requests_overlap": true
+      },
+      "passed": true,
+      "evidence": {
+        "elapsed_seconds": 0.5843235999927856,
+        "answers": [
+          {
+            "request_id": "parallel-0",
+            "history_ids": [
+              "seed-0"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 100.0
+            }
+          },
+          {
+            "request_id": "parallel-1",
+            "history_ids": [
+              "seed-1"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 900.0
+            }
+          },
+          {
+            "request_id": "parallel-2",
+            "history_ids": [
+              "seed-2"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 100.0
+            }
+          },
+          {
+            "request_id": "parallel-3",
+            "history_ids": [
+              "seed-3"
+            ],
+            "summary": {
+              "total_rows": 1,
+              "total_amount": 1.0,
+              "total_sum": 900.0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "same_session_competition",
+      "checks": {
+        "one_request_completed": true,
+        "one_request_rejected_busy": true,
+        "only_completed_turn_saved": true
+      },
+      "passed": true,
+      "evidence": {
+        "completed": 1,
+        "busy": 1,
+        "saved_messages": 4,
+        "outputs": [
+          [
+            {
+              "type": "session",
+              "session_id": "8f3b031b087a47f6a9fa3f516c0ca2d9",
+              "profile_id": "19145a36ff2f489abec5a69762337554"
+            },
+            {
+              "type": "error",
+              "code": "session_busy",
+              "message": "本会话正在处理上一条请求，请等待完成后重试。"
+            }
+          ],
+          [
+            {
+              "type": "session",
+              "session_id": "8f3b031b087a47f6a9fa3f516c0ca2d9",
+              "profile_id": "1b113a93cfe8486a989e238cd6a51bd8"
+            },
+            {
+              "type": "intent",
+              "intent": "chat"
+            },
+            {
+              "type": "tool_call",
+              "name": "rag_summarize",
+              "args": {
+                "group_by": "desc",
+                "year": "2025",
+                "keyword": "乙公司"
+              }
+            },
+            {
+              "type": "tool_result",
+              "name": "rag_summarize",
+              "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"乙公司\",\"year\":\"2025\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":900.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"乙公司\",1.0,900.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+            },
+            {
+              "type": "task_state",
+              "state": {
+                "tool": "rag_summarize",
+                "year": "2025",
+                "keyword": "乙公司",
+                "group_by": "desc"
+              }
+            },
+            {
+              "type": "answer",
+              "answer": "{\"request_id\": \"same-1\", \"history_ids\": [\"same-seed\"], \"summary\": {\"total_rows\": 1, \"total_amount\": 1.0, \"total_sum\": 900.0}}"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": "bounded_soak",
+      "checks": {
+        "all_history_and_totals_correct": true,
+        "all_turns_persisted": true,
+        "sqlite_integrity": true
+      },
+      "passed": true,
+      "evidence": {
+        "requests": 500,
+        "failures": [],
+        "saved_message_count": 1000,
+        "elapsed_seconds": 69.51786989998072,
+        "resources_before": {
+          "ok": true,
+          "threads": 5,
+          "rss_bytes": 167452672
+        },
+        "resources_after": {
+          "ok": true,
+          "threads": 2,
+          "rss_bytes": 167395328
+        },
+        "resource_samples": [
+          {
+            "requests": 100,
+            "ok": true,
+            "threads": 2,
+            "rss_bytes": 167403520
+          },
+          {
+            "requests": 200,
+            "ok": true,
+            "threads": 2,
+            "rss_bytes": 167415808
+          },
+          {
+            "requests": 300,
+            "ok": true,
+            "threads": 2,
+            "rss_bytes": 167362560
+          },
+          {
+            "requests": 400,
+            "ok": true,
+            "threads": 2,
+            "rss_bytes": 167378944
+          },
+          {
+            "requests": 500,
+            "ok": true,
+            "threads": 2,
+            "rss_bytes": 167395328
+          }
+        ]
+      }
+    }
+  ],
+  "limits": [
+    "Offline model stimuli; not real provider latency or throughput",
+    "Bounded same-process local test; not long-term uptime proof"
+  ]
+}
