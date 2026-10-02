@@ -16,6 +16,7 @@ from typing import Any
 import json
 import config
 from agent.runtime_guard import CallTimeout, ToolOutcome, bounded_call
+from agent.field_semantics import FIELD_RULES
 
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
@@ -43,6 +44,9 @@ SYSTEM_PROMPT = """你是一个企业文档处理智能体。你可以:
 4. 画图: 用户要求"画图/图表/可视化" → plot_chart。
 5. 若数据未确认, 回答时说明是"待确认草稿"; 用确认后的数据回答并给出来源。
 回答用中文, 结构清晰, 不要编造数据; 无匹配时如实说没有。"""
+
+
+SYSTEM_PROMPT += FIELD_RULES
 
 
 def build_agent() -> AgentExecutor:
@@ -88,6 +92,9 @@ EVENTS_SYSTEM_PROMPT = """你是一个企业文档处理智能体。根据用户
 - 只统计已确认(confirmed)数据; 未确认时说明"待确认草稿"。
 - 不要编造; 用中文简洁结构化回答, 给出统计结论与数据来源。
 """
+
+
+EVENTS_SYSTEM_PROMPT += FIELD_RULES
 
 
 def ask(question: str, history: list[dict[str, Any]] | None = None) -> str:

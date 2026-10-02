@@ -13,6 +13,7 @@ import json
 from langchain_core.tools import tool
 
 from db import crud
+from agent.field_semantics import FIELD_MEANINGS, SUMMARY_MEANINGS
 
 _SELECTABLE = {"item", "desc", "date"}
 _MAX_DETAILS = 20
@@ -56,6 +57,7 @@ def rag_query(query: str = "", year: str = "", top_k: int = 20) -> str:
         "returned_rows": len(rows),
         "omitted_rows": matched - len(rows),
         "columns": _DETAIL_COLUMNS,
+        "field_meanings": FIELD_MEANINGS,
         "rows": [[row.get(column) for column in _DETAIL_COLUMNS] for row in rows],
         "note": "仅展示明细样本；总额用 rag_summarize，更多明细请缩小查询范围。",
     })
@@ -66,6 +68,7 @@ def rag_summarize(group_by: str = "item", keyword: str = "", year: str = "") -> 
     """统计已确认销售数据，返回全部匹配行的总额及前20个分组(按金额降序)。
 
     summary 覆盖全部匹配行；rows 可能省略分组，数量见 omitted_groups。
+    total_amount/amount 是数量；total_sum/total 是票面金额；total_rows/rows 是明细行数。
 
     Args:
         group_by: 分组维度: item(按商品) / desc(按顾客公司) / date(按发注日)。
@@ -95,6 +98,9 @@ def rag_summarize(group_by: str = "item", keyword: str = "", year: str = "") -> 
         "returned_groups": len(selected),
         "omitted_groups": len(groups) - len(selected),
         "columns": ["group", "amount", "total", "rows"],
+        "field_meanings": {"summary": SUMMARY_MEANINGS,
+                           "columns": {"group": "分组名称", "amount": "数量合计",
+                                       "total": "票面金额合计", "rows": "明细行数"}},
         "rows": [[g["group"], g["amount"], g["total"], g["rows"]] for g in selected],
         "note": "summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。",
     })

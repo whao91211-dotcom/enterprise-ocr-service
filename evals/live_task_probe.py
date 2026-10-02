@@ -50,6 +50,8 @@ def main():
                     with patch.object(agent, 'get_llm', side_effect=factory):
                         result = _run(question, history if index == 1 else [])
                     result['expected_total'] = expected
+                    from evals.answer_checks import field_label_errors
+                    result['known_field_label_errors'] = field_label_errors(result['answer'])
                     result['status'] = 'completed_needs_review'
                     if index == 0:
                         history = [{'role': 'user', 'content': question},

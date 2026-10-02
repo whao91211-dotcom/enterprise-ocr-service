@@ -49,6 +49,18 @@ def test_insert_and_user_keys():
     assert "desc_" not in r  # 用户键无下划线
 
 
+def test_summary_labels_quantity_and_invoice_amount_without_changing_values():
+    from tools.rag_tool import rag_summarize
+    _seed(confirm=True)
+    result = json.loads(rag_summarize.invoke({}))
+    assert result['summary']['total_amount'] == 3
+    assert result['summary']['total_sum'] == 29121
+    meanings = result['field_meanings']
+    assert meanings['columns']['amount'] == '数量合计'
+    assert meanings['columns']['total'] == '票面金额合计'
+    assert meanings['summary']['total_rows'] == '明细行数（不是单据数）'
+
+
 def test_update_row_user_keys():
     doc_id = _seed()
     rid = crud.rows_by_doc(doc_id)[0]["id"]

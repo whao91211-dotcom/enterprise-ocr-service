@@ -1,0 +1,98 @@
+{
+  "dataset": "synthetic: 2024 甲=100, 2024 乙=200, 2025 乙=900",
+  "model": "deepseek-chat",
+  "cases": [
+    {
+      "question": "统计2024年甲公司的销售额",
+      "history_messages": 0,
+      "elapsed_ms": 7810,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年 甲公司 销售统计**（数据来源：已确认销售数据 ocr_rows）\n\n| 项目 | 数值 |\n|---|---|\n| 明细行数 | 1 行 |\n| 数量合计 | 1 |\n| 票面金额合计 | 100.00 |\n\n说明：\n- 金额为**票面金额合计**（sum），非数量；数量合计为 1。\n- 仅统计已确认（confirmed）数据，未确认草稿不计入。\n- 原文未明确标注币种，故未标注货币单位。\n\n如需查看该行明细或按商品/日期进一步拆分，请告知。",
+      "errors": [],
+      "expected_total": 100,
+      "known_field_label_errors": [],
+      "status": "diagnostic_reviewed",
+      "review": {
+        "method": "assistant inspected final table labels and tool arguments",
+        "amount_correct": true,
+        "year_correct": true,
+        "quantity_label_correct": true
+      }
+    },
+    {
+      "question": "那乙公司呢？",
+      "history_messages": 2,
+      "elapsed_ms": 2130,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "乙公司",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"乙公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":200.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"乙公司\",1.0,200.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年 乙公司 销售统计**（数据来源：已确认销售数据 ocr_rows）\n\n| 项目 | 数值 |\n|---|---|\n| 明细行数 | 1 行 |\n| 数量合计 | 1 |\n| 票面金额合计 | 200.00 |\n\n说明：\n- 金额为**票面金额合计**（sum），非数量；数量合计为 1。\n- 仅统计已确认（confirmed）数据。\n- 原文未明确标注币种，故未标注货币单位。\n\n对比：2024年甲公司票面金额合计 100.00，乙公司 200.00。",
+      "errors": [],
+      "expected_total": 200,
+      "known_field_label_errors": [],
+      "status": "diagnostic_reviewed",
+      "review": {
+        "method": "assistant inspected final table labels and tool arguments",
+        "amount_correct": true,
+        "year_correct": true,
+        "quantity_label_correct": true
+      }
+    },
+    {
+      "question": "2024年总销售额是多少？",
+      "history_messages": 0,
+      "elapsed_ms": 1727,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2024\"},\"group_by\":\"item\",\"summary\":{\"total_rows\":2,\"total_amount\":2.0,\"total_sum\":300.0},\"total_groups\":2,\"returned_groups\":2,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"商品B\",1.0,200.0,1],[\"商品A\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年总销售额（票面金额合计）：300.00**\n\n数据来源：已确认销售数据（ocr_rows，status=confirmed），筛选年份 2024。\n\n明细构成：\n| 商品 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 商品B | 1 | 200.00 | 1 |\n| 商品A | 1 | 100.00 | 1 |\n| **合计** | **2** | **300.00** | **2** |\n\n说明：\n- 金额取「票面金额(sum)」合计 = 300.00；数量合计为 2（非金额）。\n- 共 2 条明细行（非单据数）。\n- 原文未明确标注币种，故未标注货币单位。",
+      "errors": [],
+      "expected_total": 300,
+      "known_field_label_errors": [],
+      "status": "diagnostic_reviewed",
+      "review": {
+        "method": "assistant inspected final table labels and tool arguments",
+        "amount_correct": true,
+        "year_correct": true,
+        "quantity_label_correct": true
+      }
+    }
+  ],
+  "limitations": [
+    "Three diagnostic tasks, not 35-case Agent success rate",
+    "No OCR or provided invoice data sent to API",
+    "Evaluation sets SDK timeout=20s, retries=0; production defaults unchanged",
+    "Token usage and API cost not measured; answers require review"
+  ]
+}
