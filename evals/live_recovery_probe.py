@@ -14,6 +14,9 @@ from evals.known_gap_benchmark import score
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--cases', nargs='+', choices=('transient_read', 'invalid_group', 'permanent_read', 'ocr_offline'),
+                        default=['transient_read', 'invalid_group', 'permanent_read', 'ocr_offline'])
+    parser.add_argument('--repeats', type=int, choices=(1, 2), default=2)
     args = parser.parse_args()
     from db import database, crud
     from evals.task_benchmark import load_streaming_agent
@@ -29,13 +32,14 @@ def main():
     factory = lambda: ChatDeepSeek(model=config.DEEPSEEK_MODEL,
         api_key=config.require_deepseek_key(), temperature=.3, timeout=20, max_retries=0)
     report = {'dataset': 'synthetic 2024甲100/乙200, 2025乙900', 'model': config.DEEPSEEK_MODEL,
-              'limits': ['Two runs per fault; not population recovery rate',
+              'selected_cases': args.cases, 'repeats': args.repeats,
+              'limits': ['One or two runs per selected fault; not population recovery rate',
                          'Fault injected in tools; model actions are autonomous', 'No real OCR quality measurement'], 'cases': []}
     previous = database._DATA_DIR, database.DB_PATH
     try:
         with tempfile.TemporaryDirectory(prefix='agent_recovery_') as root, TestClient(app) as client:
-            for repeat in (1, 2):
-                for kind in ('transient_read', 'invalid_group', 'permanent_read', 'ocr_offline'):
+            for repeat in range(1, args.repeats+1):
+                for kind in args.cases:
                     directory = Path(root)/f'{repeat}_{kind}'
                     directory.mkdir()
                     database._DATA_DIR, database.DB_PATH = directory, directory/'agent.db'

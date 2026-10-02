@@ -1,0 +1,337 @@
+{
+  "dataset_version": "fresh-business-v1",
+  "frozen_cases": [
+    [
+      "full_total",
+      "请重新查询2027年全部公司的票面销售金额合计，使用完整聚合，不要仅合计展示的分组。",
+      "",
+      "total_sum",
+      1250
+    ],
+    [
+      "quantity",
+      "请查询2027年全部公司的销售数量合计，区分数量与金额，使用完整聚合。",
+      "",
+      "total_amount",
+      57
+    ],
+    [
+      "discount",
+      "请查询2027年批量公司00的票面金额合计，包含折扣记录。",
+      "批量公司00",
+      "total_sum",
+      -24
+    ],
+    [
+      "real_zero",
+      "请查询2027年零值公司的票面金额合计，并说明是否存在已确认记录。",
+      "零值公司",
+      "total_sum",
+      0
+    ],
+    [
+      "other_year",
+      "请查询2028年全部公司的票面金额合计，不要混入其他年份。",
+      "",
+      "total_sum",
+      333
+    ],
+    [
+      "pending",
+      "请查询2027年待核公司的已确认销售记录，未确认草稿不要用于结论。",
+      "待核公司",
+      null,
+      null
+    ]
+  ],
+  "data_recipe": "50 groups with invoice sums 1..50, discount -25, zero-value quantity 7, other year 333, pending 99999",
+  "limits": [
+    "Six new synthetic questions; one pass, no population accuracy estimate",
+    "After this run these cases cannot be treated as untouched for subsequent tuning"
+  ],
+  "offline": {
+    "full_summary": true,
+    "group_omissions": true,
+    "details_are_sample": true,
+    "discount_preserved": true,
+    "pending_excluded": true
+  },
+  "cases": [
+    {
+      "id": "full_total",
+      "checks": {
+        "query_executed": true,
+        "scope": true,
+        "full_tool_value": true,
+        "answer_value": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the complete aggregation for 2027 sales data."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "year": "2027"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2027\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":52,\"total_amount\":57.0,\"total_sum\":1250.0},\"total_groups\":51,\"returned_groups\":20,\"omitted_groups\":31,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"批量公司49\",1.0,50.0,1],[\"批量公司48\",1.0,49.0,1],[\"批量公司47\",1.0,48.0,1],[\"批量公司46\",1.0,47.0,1],[\"批量公司45\",1.0,46.0,1],[\"批量公司44\",1.0,45.0,1],[\"批量公司43\",1.0,44.0,1],[\"批量公司42\",1.0,43.0,1],[\"批量公司41\",1.0,42.0,1],[\"批量公司40\",1.0,41.0,1],[\"批量公司39\",1.0,40.0,1],[\"批量公司38\",1.0,39.0,1],[\"批量公司37\",1.0,38.0,1],[\"批量公司36\",1.0,37.0,1],[\"批量公司35\",1.0,36.0,1],[\"批量公司34\",1.0,35.0,1],[\"批量公司33\",1.0,34.0,1],[\"批量公司32\",1.0,33.0,1],[\"批量公司31\",1.0,32.0,1],[\"批量公司30\",1.0,31.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2027",
+            "keyword": "",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "## 2027年全部公司票面销售金额合计\n\n**查询条件**：年份 = 2027，分组维度 = 顾客公司（desc），数据范围 = 已确认数据\n\n**完整聚合结果（summary 覆盖全部匹配行）**：\n\n| 指标 | 数值 |\n|---|---|\n| 票面金额合计（total_sum） | **1250.0** |\n| 数量合计（total_amount） | 57.0 |\n| 明细行数（total_rows） | 52 |\n\n**说明**：\n- 以上合计来自 `summary` 字段，覆盖全部 52 条匹配明细行，**不是**仅对展示的 20 个分组求和。\n- 分组共 51 个，工具仅展示前 20 个（按金额降序），省略 31 个分组（omitted_groups=31）；但合计值已包含全部行。\n- 金额请以 `total_sum`（票面金额合计）为准，`total_amount` 为数量合计，非金额。\n- 数据来源：已确认销售数据表（ocr_rows，status=confirmed）。\n\n如需查看被省略的其余 31 个公司分组明细，可缩小关键词范围或按公司单独查询。"
+        }
+      ],
+      "elapsed_ms": 6943
+    },
+    {
+      "id": "quantity",
+      "checks": {
+        "query_executed": true,
+        "scope": true,
+        "full_tool_value": true,
+        "answer_value": true,
+        "quantity_label": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2027, grouped by customer company."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "year": "2027"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2027\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":52,\"total_amount\":57.0,\"total_sum\":1250.0},\"total_groups\":51,\"returned_groups\":20,\"omitted_groups\":31,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"批量公司49\",1.0,50.0,1],[\"批量公司48\",1.0,49.0,1],[\"批量公司47\",1.0,48.0,1],[\"批量公司46\",1.0,47.0,1],[\"批量公司45\",1.0,46.0,1],[\"批量公司44\",1.0,45.0,1],[\"批量公司43\",1.0,44.0,1],[\"批量公司42\",1.0,43.0,1],[\"批量公司41\",1.0,42.0,1],[\"批量公司40\",1.0,41.0,1],[\"批量公司39\",1.0,40.0,1],[\"批量公司38\",1.0,39.0,1],[\"批量公司37\",1.0,38.0,1],[\"批量公司36\",1.0,37.0,1],[\"批量公司35\",1.0,36.0,1],[\"批量公司34\",1.0,35.0,1],[\"批量公司33\",1.0,34.0,1],[\"批量公司32\",1.0,33.0,1],[\"批量公司31\",1.0,32.0,1],[\"批量公司30\",1.0,31.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2027",
+            "keyword": "",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "## 2027年全部公司销售统计（按顾客公司分组）\n\n**数据来源**：已确认销售数据（ocr_rows，status=confirmed），筛选条件：年份=2027，分组维度=顾客公司\n\n### 汇总（覆盖全部匹配行）\n| 指标 | 数值 | 说明 |\n|---|---|---|\n| 明细行数 | 52 行 | 不是单据数 |\n| **数量合计** | **57.0** | total_amount，数量（非金额） |\n| **票面金额合计** | **1250.0** | total_sum，金额 |\n\n### 分组情况\n- 共 **51 个公司分组**，此处仅展示金额降序前 20 个（省略 31 个分组）。\n- 前 20 组均为「批量公司30」～「批量公司49」，每组各 1 行、数量 1.0，票面金额从 31.0 到 50.0 递增。\n\n### 结论\n- 2027 年已确认记录中，**销售数量合计为 57.0（数量）**，**票面金额合计为 1250.0（金额）**，共 52 条明细行。\n- 数量与金额已明确区分：57.0 为数量合计，1250.0 为票面金额合计，二者不可混用。\n\n如需查看全部 51 个公司分组的完整明细，或按商品/日期维度统计，请告知。"
+        }
+      ],
+      "elapsed_ms": 2752
+    },
+    {
+      "id": "discount",
+      "checks": {
+        "query_executed": true,
+        "scope": true,
+        "full_tool_value": true,
+        "answer_value": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2027 with the keyword \"批量公司00\"."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "批量公司00",
+            "year": "2027"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"批量公司00\",\"year\":\"2027\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":2,\"total_amount\":1.0,\"total_sum\":-24.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"批量公司00\",1.0,-24.0,2]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2027",
+            "keyword": "批量公司00",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2027年「批量公司00」票面金额合计查询结果**\n\n| 项目 | 数值 |\n|---|---|\n| 顾客公司 | 批量公司00 |\n| 明细行数 | 2 行 |\n| 数量合计 | 1 |\n| **票面金额合计** | **-24.00** |\n\n**说明：**\n- 数据来源：已确认（confirmed）销售数据表 `ocr_rows`，过滤条件为 年份=2027、关键词=批量公司00。\n- 金额合计为 **-24.00**（票面金额，已包含折扣记录，故为负值），数量合计为 1。\n- 注意：`-24.00` 是票面金额合计（total_sum），非数量；数量合计为 1。\n- 该结果已包含折扣行，未做任何覆盖或重算。"
+        }
+      ],
+      "elapsed_ms": 4503
+    },
+    {
+      "id": "real_zero",
+      "checks": {
+        "query_executed": true,
+        "scope": true,
+        "full_tool_value": true,
+        "answer_value": true,
+        "record_existence": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2027 filtered by \"零值公司\"."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "零值公司",
+            "year": "2027"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"零值公司\",\"year\":\"2027\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":7.0,\"total_sum\":0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"零值公司\",7.0,0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2027",
+            "keyword": "零值公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**查询结果（2027年 · 零值公司）**\n\n| 项目 | 值 |\n|---|---|\n| 明细行数 | 1 行 |\n| 数量合计 | 7 |\n| 票面金额合计 | 0 |\n\n**结论：**\n- 存在匹配的**已确认**记录：2027年\"零值公司\"有 1 条已确认明细行。\n- 该查询下**票面金额合计为 0**（工具统计明确返回 total_sum = 0），数量合计为 7。\n- 数据来源：已确认销售数据表（ocr_rows，status=confirmed），过滤条件为 关键词\"零值公司\" + 年份 2027。\n\n说明：金额字段读取的是票面金额（sum/total_sum），数量字段为 amount（此处为 7，非金额）。本次统计明确返回金额为 0，故可报告该已确认记录的票面金额合计为 0。"
+        }
+      ],
+      "elapsed_ms": 2372
+    },
+    {
+      "id": "other_year",
+      "checks": {
+        "query_executed": true,
+        "scope": true,
+        "full_tool_value": true,
+        "answer_value": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2028."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "year": "2028"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2028\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":3.0,\"total_sum\":333.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"跨年公司\",3.0,333.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2028",
+            "keyword": "",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2028年票面金额合计查询结果**\n\n| 项目 | 数值 |\n|---|---|\n| 年份过滤 | 2028年（仅此年份） |\n| 明细行数 | 1 行 |\n| 数量合计 | 3 |\n| **票面金额合计** | **333.00** |\n\n**按顾客公司分组（共 1 组）：**\n\n| 顾客公司 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 跨年公司 | 3 | 333.00 | 1 |\n\n**说明：**\n- 数据来源：已确认（confirmed）销售数据表 `ocr_rows`，过滤条件为年份=2028，未混入其他年份。\n- 金额为票面金额合计（total_sum），非数量；数量合计为 3。\n- 本次匹配仅 1 条明细行、1 个分组，无省略分组。\n- 未标注币种，因原文未明确提供币种信息。"
+        }
+      ],
+      "elapsed_ms": 2153
+    },
+    {
+      "id": "pending",
+      "checks": {
+        "query_executed": true,
+        "scope": true,
+        "no_match": true
+      },
+      "passed": true,
+      "events": [
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales records for 2027 with the keyword \"待核公司\"."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_query",
+          "args": {
+            "query": "待核公司",
+            "year": "2027"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_query",
+          "result": "（未检索到匹配的已确认数据[关键词 '待核公司'、年份 2027]）"
+        },
+        {
+          "type": "answer",
+          "answer": "查询结论如下：\n\n- **查询条件**：关键词「待核公司」+ 年份 2027，仅限已确认数据。\n- **结果**：未检索到匹配的已确认销售记录。\n\n说明：\n- 该结果来自已确认数据的查询工具，未确认草稿未纳入统计。\n- 「无匹配」仅表示在该条件下没有已确认记录，**不能据此推断实际销售额为零**，也无法给出金额合计。\n- 如需进一步核对，可考虑：确认关键词是否为顾客公司全称/简称，或确认 2027 年单据是否尚未完成人工确认（可用 correct_list_docs 查看确认进度）。"
+        }
+      ],
+      "elapsed_ms": 2666
+    }
+  ]
+}
