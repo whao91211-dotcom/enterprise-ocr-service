@@ -210,6 +210,8 @@ def run_agent_events(
             + json.dumps(task_state, ensure_ascii=False)
             + '\n仅在用户明确继续此前查询且近期消息缺少条件时参考；当前请求和近期消息优先。'
               '新任务不能自动套用这些条件；不明确时应询问，不猜测。'
+              '成功快照不包含无匹配查询的条件。用户明确继续无匹配查询、但近期消息缺少其年份时，'
+              '必须先询问该无匹配查询的年份，禁止把成功快照的年份当作它的年份执行工具。'
         )
     if preferences:
         numbered = "\n".join(f"{i}. {item}" for i, item in enumerate(preferences, 1))
