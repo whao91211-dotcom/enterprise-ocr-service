@@ -68,6 +68,8 @@ def score(events, goal):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--repeats', type=int, choices=range(1, 6), default=1)
+    parser.add_argument('--include-variants', action='store_true')
     args = parser.parse_args()
     from db import database, chat_memory, task_state, crud
     from evals.task_benchmark import load_streaming_agent, ScriptedModel
@@ -83,16 +85,28 @@ def main():
     app.include_router(agent_chat.router)
     factory = lambda: ChatDeepSeek(model=config.DEEPSEEK_MODEL,
         api_key=config.require_deepseek_key(), temperature=.3, timeout=20, max_retries=0)
+    variants = {
+        'no_match_amount': '还是刚才2025年甲公司的条件。没有查到记录，那能确定它实际卖了多少钱吗？',
+        'truncated_no_match_ambiguous': '把刚才查不到数据的那次改成乙公司再统计，年份沿用那次的，不要改年份。',
+    }
+    definitions = [{**c, 'base_case_id': c['id'], 'wording': 'original'} for c in CASES]
+    if args.include_variants:
+        definitions += [{**c, 'id': c['id']+'_variant', 'base_case_id': c['id'],
+                         'wording': 'variant', 'question': variants[c['id']]}
+                        for c in CASES if c['id'] in variants]
+    runs = [{**c, 'repeat': repeat} for repeat in range(1, args.repeats+1) for c in definitions]
     report = {'suite': 'known-gap-v1', 'model': config.DEEPSEEK_MODEL,
+              'repeats': args.repeats, 'include_variants': args.include_variants,
+              'model_settings': {'temperature': .3, 'timeout_seconds': 20, 'max_retries': 0},
               'dataset': 'synthetic 2024甲100/乙200, 2025乙900; isolated zero/addition controls',
               'limits': ['Scripted setup uses real HTTP, SQL and state extraction; only target turn uses live model',
-                         'One run per case; automatic semantic checks need manual review',
+                         'Limited repeated development cases; automatic semantic checks need manual review',
                          'Not overall accuracy; no comparable before/after or cost measurement'], 'cases': []}
     previous = database._DATA_DIR, database.DB_PATH
     try:
         with tempfile.TemporaryDirectory(prefix='agent_known_gap_') as root, TestClient(app) as client:
-            for definition in CASES:
-                directory = Path(root)/definition['id']
+            for definition in runs:
+                directory = Path(root)/f"{definition['repeat']}_{definition['id']}"
                 directory.mkdir()
                 database._DATA_DIR, database.DB_PATH = directory, directory/'agent.db'
                 _seed_sales()
@@ -150,7 +164,8 @@ def main():
                 report['cases'].append(case)
                 args.output.parent.mkdir(parents=True, exist_ok=True)
                 args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
-                print(json.dumps({'id': case['id'], 'checks': checks, 'elapsed_ms': case['elapsed_ms']}, ensure_ascii=False), flush=True)
+                print(json.dumps({'id': case['id'], 'repeat': case['repeat'], 'checks': checks,
+                                  'elapsed_ms': case['elapsed_ms']}, ensure_ascii=False), flush=True)
     finally:
         database._DATA_DIR, database.DB_PATH = previous
 

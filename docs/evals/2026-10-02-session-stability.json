@@ -1,0 +1,1033 @@
+{
+  "sessions": 10,
+  "rounds": 6,
+  "mode": "offline sequential interleaving",
+  "limits": [
+    "Scripted model actions; measures persistence/isolation not model quality",
+    "No network/OCR or actual concurrent requests; no throughput claim"
+  ],
+  "cases": [
+    {
+      "session_index": 0,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 1,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 2,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 3,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 4,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 5,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 6,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 7,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 8,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 9,
+      "round": 1,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 0,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 1,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 2,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 3,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 4,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 5,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 6,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 7,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 8,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 9,
+      "round": 2,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 0,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 1,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 2,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 3,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 4,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 5,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 6,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 7,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 8,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 9,
+      "round": 3,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 0,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 1,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 2,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 3,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 4,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 5,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 6,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 7,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 8,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 9,
+      "round": 4,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 0,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 1,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 2,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 3,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 4,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 5,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 6,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 7,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 8,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 9,
+      "round": 5,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 0,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 1,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 2,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 3,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 4,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 5,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 6,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 7,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 8,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    },
+    {
+      "session_index": 9,
+      "round": 6,
+      "checks": {
+        "session_id_preserved": true,
+        "profile_id_preserved": true,
+        "history_exact": true,
+        "own_preference_delivered": true,
+        "other_preferences_absent": true,
+        "prior_state_delivered": true,
+        "expected_state": true,
+        "no_runtime_error": true,
+        "turn_persisted": true,
+        "preference_unchanged": true
+      },
+      "passed": true
+    }
+  ],
+  "passed": 60,
+  "total": 60
+}
