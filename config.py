@@ -54,6 +54,9 @@ OCR_TOP_P = float(_get("OCR_TOP_P", "0.8"))
 # ---- Agent LLM (DeepSeek) ----
 DEEPSEEK_API_KEY = _get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = _get("DEEPSEEK_MODEL", "deepseek-chat")
+AGENT_MODEL_TIMEOUT_SECONDS = float(_get("AGENT_MODEL_TIMEOUT_SECONDS", "60"))
+AGENT_TOOL_TIMEOUT_SECONDS = float(_get("AGENT_TOOL_TIMEOUT_SECONDS", "60"))
+AGENT_MAX_TOOL_CALLS = int(_get("AGENT_MAX_TOOL_CALLS", "8"))
 
 
 def require_deepseek_key() -> str:

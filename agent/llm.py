@@ -9,4 +9,5 @@ import config
 
 def get_llm() -> ChatDeepSeek:
     key = config.require_deepseek_key()
-    return ChatDeepSeek(model=config.DEEPSEEK_MODEL, api_key=key, temperature=0.3)
+    return ChatDeepSeek(model=config.DEEPSEEK_MODEL, api_key=key, temperature=0.3,
+                       timeout=config.AGENT_MODEL_TIMEOUT_SECONDS, max_retries=0)

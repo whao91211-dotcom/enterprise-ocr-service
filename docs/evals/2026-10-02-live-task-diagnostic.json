@@ -1,0 +1,98 @@
+{
+  "dataset": "synthetic: 2024 甲=100, 2024 乙=200, 2025 乙=900",
+  "model": "deepseek-chat",
+  "cases": [
+    {
+      "question": "统计2024年甲公司的销售额",
+      "history_messages": 0,
+      "elapsed_ms": 7646,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "## 2024年 甲公司 销售额统计\n\n| 项目 | 数值 |\n|---|---|\n| 匹配行数 | 1 行 |\n| 合计金额(amount) | 1.00 |\n| 合计(sum) | 100.00 |\n\n**结论**：在已确认(confirmed)数据中，2024 年「甲公司」仅有 **1 条**销售记录，销售额合计为 **100.00**（amount 合计 1.00）。\n\n**数据来源**：数据库表 `ocr_rows`（状态：confirmed），过滤条件 keyword=甲公司、year=2024，按顾客公司(desc)分组。\n\n⚠️ 提示：\n- 该结果仅覆盖**已确认**数据；若还有未确认的草稿单据，需先核对确认后才会纳入统计。\n- 若「甲公司」在单据中可能以其他写法出现（如全称、简称、日文名），建议提供准确名称以便精确匹配。",
+      "errors": [],
+      "expected_total": 100,
+      "status": "diagnostic_reviewed",
+      "review": {
+        "method": "assistant inspected tool arguments and final text",
+        "amount_correct": true,
+        "year_correct": true,
+        "quantity_label_correct": false,
+        "note": "amount field was labelled money in table"
+      }
+    },
+    {
+      "question": "那乙公司呢？",
+      "history_messages": 2,
+      "elapsed_ms": 2607,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "乙公司",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"乙公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":200.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"rows\":[[\"乙公司\",1.0,200.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "## 2024年 乙公司 销售额统计\n\n| 项目 | 数值 |\n|---|---|\n| 匹配行数 | 1 行 |\n| 合计金额(amount) | 1.00 |\n| 合计(sum) | 200.00 |\n\n**结论**：在已确认(confirmed)数据中，2024 年「乙公司」同样仅有 **1 条**销售记录，销售额合计为 **200.00**（amount 合计 1.00）。\n\n**数据来源**：数据库表 `ocr_rows`（状态：confirmed），过滤条件 keyword=乙公司、year=2024，按顾客公司(desc)分组。\n\n---\n\n### 两家对比（2024年）\n\n| 顾客公司 | 行数 | 销售额(sum) |\n|---|---|---|\n| 甲公司 | 1 | 100.00 |\n| 乙公司 | 1 | 200.00 |\n\n⚠️ 提示：以上仅统计**已确认**数据；如有未确认草稿单据，需先核对确认后才会纳入。若公司名称存在其他写法，请提供准确名称以便精确匹配。",
+      "errors": [],
+      "expected_total": 200,
+      "status": "diagnostic_reviewed",
+      "review": {
+        "method": "assistant inspected tool arguments and final text",
+        "amount_correct": true,
+        "year_correct": true,
+        "quantity_label_correct": false,
+        "note": "amount field was labelled money in table"
+      }
+    },
+    {
+      "question": "2024年总销售额是多少？",
+      "history_messages": 0,
+      "elapsed_ms": 1914,
+      "tool_calls": [
+        {
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item",
+            "year": "2024"
+          }
+        }
+      ],
+      "tool_results": [
+        "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"2024\"},\"group_by\":\"item\",\"summary\":{\"total_rows\":2,\"total_amount\":2.0,\"total_sum\":300.0},\"total_groups\":2,\"returned_groups\":2,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"rows\":[[\"商品B\",1.0,200.0,1],[\"商品A\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+      ],
+      "answer": "**2024年总销售额：300.00**（共 2 笔已确认记录）\n\n| 商品 | 金额 |\n|---|---|\n| 商品B | 200.00 |\n| 商品A | 100.00 |\n| **合计** | **300.00** |\n\n数据来源：已确认销售数据表（ocr_rows，status=confirmed），筛选条件为发注日年份 2024。\n\n说明：当前仅统计**已确认**数据；若还有未确认的识别草稿，需先核对确认后才会纳入统计。",
+      "errors": [],
+      "expected_total": 300,
+      "status": "diagnostic_reviewed",
+      "review": {
+        "method": "assistant inspected tool arguments and final text",
+        "amount_correct": true,
+        "year_correct": true,
+        "quantity_label_correct": true,
+        "note": "no quantity label issue observed"
+      }
+    }
+  ],
+  "limitations": [
+    "Three diagnostic tasks, not 35-case Agent success rate",
+    "No OCR or provided invoice data sent to API",
+    "Evaluation sets SDK timeout=20s, retries=0; production defaults unchanged",
+    "Token usage and API cost not measured; answers require review"
+  ]
+}

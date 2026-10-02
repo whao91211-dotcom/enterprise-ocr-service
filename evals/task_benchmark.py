@@ -33,8 +33,15 @@ def load_streaming_agent():
         raise RuntimeError('Legacy executor is outside this streaming benchmark')
     legacy.AgentExecutor = unused
     legacy.create_tool_calling_agent = unused
-    with patch.dict(sys.modules, {'langchain_classic.agents': legacy}):
+    previous = sys.modules.get('langchain_classic.agents')
+    sys.modules['langchain_classic.agents'] = legacy
+    try:
         from agent import agent
+    finally:
+        if previous is None:
+            sys.modules.pop('langchain_classic.agents', None)
+        else:
+            sys.modules['langchain_classic.agents'] = previous
     return agent
 
 
@@ -58,20 +65,27 @@ class ScriptedModel:
 
 def blocking_worker(kind, connection):
     agent = load_streaming_agent()
+    timing = {}
     class BlockingModel(ScriptedModel):
         def invoke(self, messages):
+            timing['start'] = time.perf_counter()
             connection.send('blocking-call-started')
             time.sleep(3600)
     class BlockingTool:
         def invoke(self, arguments):
+            timing['start'] = time.perf_counter()
             connection.send('blocking-call-started')
             time.sleep(3600)
     try:
         model = BlockingModel() if kind == 'model' else ScriptedModel([[call('blocking', {})]])
-        with patch.object(agent, 'get_llm', return_value=model), \
+        with patch.object(agent.config, 'AGENT_MODEL_TIMEOUT_SECONDS', .5, create=True), \
+             patch.object(agent.config, 'AGENT_TOOL_TIMEOUT_SECONDS', .5, create=True), \
+             patch.object(agent, 'get_llm', return_value=model), \
              patch.dict(agent._TOOL_BY_NAME, {'blocking': BlockingTool()}):
-            list(agent.run_agent_events('超时测试'))
-        connection.send('agent-returned')
+            events = list(agent.run_agent_events('超时测试'))
+        answer = next((e['answer'] for e in events if e['type'] == 'answer'), '')
+        connection.send({'status': 'agent-returned', 'answer': answer,
+                         'elapsed_seconds': round(time.perf_counter()-timing['start'], 3)})
     except Exception as exc:
         connection.send({'error': type(exc).__name__})
     finally:
@@ -100,13 +114,20 @@ def timeout_probes():
             started = time.perf_counter()
             returned = receiver.poll(2)
             evidence = {'injected_call_budget_seconds': 2,
+                        'configured_call_timeout_seconds': .5,
                         'observation_seconds': round(time.perf_counter()-started, 3),
                         'agent_returned': returned,
                         'terminated_by_evaluation_harness': not returned,
-                        'note': '2-second diagnostic budget; production thresholds not selected'}
+                        'note': '2-second observation window; 0.5-second worker configuration; production defaults provisional'}
+            response = receiver.recv() if returned else None
             if returned:
-                evidence['result'] = receiver.recv()
-            results.append((kind, 'pass' if returned else 'fail', evidence))
+                evidence['result'] = response
+                if isinstance(response, dict) and 'elapsed_seconds' in response:
+                    evidence['observation_seconds'] = response['elapsed_seconds']
+            handled = (isinstance(response, dict) and response.get('status') == 'agent-returned'
+                       and '超时' in response.get('answer', '')
+                       and response.get('elapsed_seconds', 3) <= 2)
+            results.append((kind, 'pass' if handled else 'fail', evidence))
     finally:
         for _, receiver, process in workers:
             if process.is_alive():

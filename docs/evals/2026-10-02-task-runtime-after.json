@@ -1,0 +1,265 @@
+{
+  "mode": "offline",
+  "fixture_images": 20,
+  "fixture_rows": 204,
+  "specification_cases": 35,
+  "elapsed_seconds": 25.152,
+  "label_acceptance": "User accepted supplied invoice labels as-is; no automatic recalculation",
+  "categories": {
+    "context_delivery": {
+      "pass": 4,
+      "fail": 1,
+      "not_run": 0
+    },
+    "runtime_guard": {
+      "pass": 10,
+      "fail": 0,
+      "not_run": 0
+    },
+    "sql_oracle": {
+      "pass": 20,
+      "fail": 0,
+      "not_run": 0
+    }
+  },
+  "cases": [
+    {
+      "case_id": "query-01",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-02",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-03",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-04",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-05",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-06",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-07",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-08",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-09",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-10",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-11",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-12",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-13",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-14",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-15",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-16",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-17",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-18",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-19",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "query-no-match",
+      "category": "sql_oracle",
+      "status": "pass"
+    },
+    {
+      "case_id": "context-followup",
+      "category": "context_delivery",
+      "status": "pass",
+      "evidence": "检查历史传递，不评模型继承参数"
+    },
+    {
+      "case_id": "context-recent",
+      "category": "context_delivery",
+      "status": "pass",
+      "evidence": "最近消息传入"
+    },
+    {
+      "case_id": "context-old",
+      "category": "context_delivery",
+      "status": "fail",
+      "evidence": "14条历史截取最近10条，最早的必要年份丢失"
+    },
+    {
+      "case_id": "preference-available",
+      "category": "context_delivery",
+      "status": "pass",
+      "evidence": "只验证偏好注入；未验证模型遵循或跨会话存取"
+    },
+    {
+      "case_id": "preference-override",
+      "category": "context_delivery",
+      "status": "pass",
+      "evidence": "只验证优先级规则注入，不等同于实际遵循"
+    },
+    {
+      "case_id": "ocr-offline",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": "识别失败: injected offline"
+    },
+    {
+      "case_id": "tool-exception",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": "工具执行出错: injected tool failure"
+    },
+    {
+      "case_id": "invalid-parameters",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": "group_by 仅支持: ['date', 'desc', 'item']（收到 invalid）"
+    },
+    {
+      "case_id": "unknown-tool",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": "未知工具: nonexistent"
+    },
+    {
+      "case_id": "malformed-arguments",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": "工具执行出错: 1 validation error for rag_summarize\ngroup_by\n  Input should be a valid string [type=string_type, input_value=['item'], input_type=list]\n    For further information visit https://errors.pydantic.dev/2.12/v/string_type"
+    },
+    {
+      "case_id": "repeated-failure",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": {
+        "observed_tool_calls": 2,
+        "target_max": 2,
+        "terminated_by_round_cap": false,
+        "stimulus": "scripted model keeps requesting failed tools"
+      }
+    },
+    {
+      "case_id": "alternating-failure",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": {
+        "observed_tool_calls": 4,
+        "target_max": 4,
+        "terminated_by_round_cap": false,
+        "stimulus": "scripted model keeps requesting failed tools"
+      }
+    },
+    {
+      "case_id": "tool-budget",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": {
+        "observed_tool_calls": 2,
+        "target_max": 8,
+        "terminated_by_round_cap": false,
+        "stimulus": "scripted model keeps requesting failed tools"
+      }
+    },
+    {
+      "case_id": "tool-timeout",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": {
+        "injected_call_budget_seconds": 2,
+        "observation_seconds": 0.501,
+        "agent_returned": true,
+        "terminated_by_evaluation_harness": false,
+        "note": "2-second observation window; 0.5-second worker configuration; production defaults provisional",
+        "result": {
+          "status": "agent-returned",
+          "answer": "工具等待超时，本次任务已停止。底层操作可能仍在执行；修改或入库前请先核对状态，避免重复执行。",
+          "elapsed_seconds": 0.501
+        },
+        "configured_call_timeout_seconds": 0.5
+      }
+    },
+    {
+      "case_id": "model-timeout",
+      "category": "runtime_guard",
+      "status": "pass",
+      "evidence": {
+        "injected_call_budget_seconds": 2,
+        "observation_seconds": 0.501,
+        "agent_returned": true,
+        "terminated_by_evaluation_harness": false,
+        "note": "2-second observation window; 0.5-second worker configuration; production defaults provisional",
+        "result": {
+          "status": "agent-returned",
+          "answer": "模型等待超时，本次任务已停止。等待超时；底层操作可能仍在执行，不能据此认定已取消",
+          "elapsed_seconds": 0.501
+        },
+        "configured_call_timeout_seconds": 0.5
+      }
+    }
+  ],
+  "limitations": [
+    "No real LLM/OCR requests; not Agent task success rate",
+    "Unused legacy AgentExecutor imports bypassed; real streaming loop and SQL tools used",
+    "Context delivery is not preference adherence or correct reasoning",
+    "Runtime guards use scripted tool requests, not real model recovery",
+    "Timeout probes use a 2-second diagnostic budget; service SDK behavior is not tested",
+    "Fixture is a small deterministic subset, not a representative benchmark",
+    "No quality improvements, actual tokens, API cost or model latency measured"
+  ]
+}

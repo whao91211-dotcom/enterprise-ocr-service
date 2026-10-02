@@ -13,6 +13,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import json
+import config
+from agent.runtime_guard import CallTimeout, ToolOutcome, bounded_call
+
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -211,8 +215,18 @@ def run_agent_events(
 
     yield {"type": "intent", "intent": _guess_intent(user_input)}
 
+    total_calls = 0
+    failure_streak = 0
+    repeated_failures = 0
+    last_failure = None
     for _step in range(8):
-        resp = llm_tools.invoke(messages)
+        try:
+            resp = bounded_call(lambda: llm_tools.invoke(messages),
+                                config.AGENT_MODEL_TIMEOUT_SECONDS)
+        except Exception as exc:
+            reason = "模型等待超时" if isinstance(exc, (TimeoutError, CallTimeout)) else "模型调用失败"
+            yield {"type": "answer", "answer": f"{reason}，本次任务已停止。{exc}"}
+            return
         content = getattr(resp, "content", "") or ""
         tool_calls = getattr(resp, "tool_calls", None) or []
         if not tool_calls:
@@ -231,10 +245,38 @@ def run_agent_events(
             )
         messages.append(assistant)
         for tc in tool_calls:
+            if total_calls >= config.AGENT_MAX_TOOL_CALLS:
+                yield {"type": "answer", "answer": "已达到本次任务的工具调用总预算，请缩小问题范围。"}
+                return
+            total_calls += 1
             yield {"type": "tool_call", "name": tc.get("name", ""), "args": tc.get("args", {})}
-            result = _run_tool_call(tc)
+            timeout = (config.OCR_TIMEOUT_SECONDS + 5 if tc.get("name") in
+                       {"ocr_recognize_chat", "ocr_recognize"} else config.AGENT_TOOL_TIMEOUT_SECONDS)
+            try:
+                result = bounded_call(lambda tc=tc: _run_tool_call(tc), timeout)
+            except Exception as exc:
+                reason = "工具等待超时" if isinstance(exc, TimeoutError) else "工具调用失败"
+                yield {"type": "tool_result", "name": tc.get("name", ""), "result": f"{reason}: {exc}"}
+                yield {"type": "answer", "answer": f"{reason}，本次任务已停止。底层操作可能仍在执行；修改或入库前请先核对状态，避免重复执行。"}
+                return
             yield {"type": "tool_result", "name": tc.get("name", ""), "result": result[:2000]}
             messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
+            if getattr(result, 'failed', False):
+                if tc.get('name') in {'ocr_recognize_chat', 'ocr_recognize',
+                                      'correct_update_row', 'correct_confirm',
+                                      'plot_chart', 'generate_report'}:
+                    yield {"type": "answer", "answer": f"操作未能确认成功：{result}。本次任务已停止，请先核对状态，避免重复写入。"}
+                    return
+                signature = (tc.get('name'), json.dumps(tc.get('args', {}), sort_keys=True, ensure_ascii=False))
+                failure_streak += 1
+                repeated_failures = repeated_failures + 1 if signature == last_failure else 1
+                last_failure = signature
+                if repeated_failures >= 2 or failure_streak >= 4:
+                    yield {"type": "answer", "answer": f"工具调用持续失败，本次任务已停止。最后错误：{result}。请核对参数或服务状态。"}
+                    return
+            else:
+                failure_streak = repeated_failures = 0
+                last_failure = None
     yield {"type": "answer", "answer": "（工具调用次数过多，请缩小问题范围）"}
 
 
@@ -243,8 +285,13 @@ def _run_tool_call(tc: dict[str, Any]) -> str:
     args = tc.get("args") or {}
     fn = _TOOL_BY_NAME.get(name)
     if fn is None:
-        return f"未知工具: {name}"
+        return ToolOutcome(f"未知工具: {name}", failed=True)
     try:
-        return str(fn.invoke(args if isinstance(args, dict) else {"arg": args}))
+        text = str(fn.invoke(args if isinstance(args, dict) else {"arg": args}))
+        failed = text.startswith(("错误:", "识别失败:", "识别到 0 行", "group_by 仅支持:",
+                                  "top_k 必须", "fields 不是合法", "fields 须为", "不支持的字段:"))
+        if name == 'correct_update_row' and '更新失败(行可能不存在)' in text:
+            failed = True
+        return ToolOutcome(text, failed=failed)
     except Exception as e:  # noqa: BLE001
-        return f"工具执行出错: {e}"
+        return ToolOutcome(f"工具执行出错: {e}", failed=True)
