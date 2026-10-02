@@ -1,0 +1,7 @@
+{
+  "checked_at": "2026-10-02T11:26:49.577860+00:00",
+  "timeout_seconds": 3,
+  "limit": "GET /models availability only; not OCR recognition quality",
+  "ocr_endpoint_probe": "unavailable",
+  "error_class": "ConnectionError"
+}
