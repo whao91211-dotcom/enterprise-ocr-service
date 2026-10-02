@@ -1,0 +1,363 @@
+{
+  "model": "deepseek-chat",
+  "dataset": "3 synthetic rows: 2024甲100, 2024乙200, 2025乙900",
+  "execution": "real HTTP SSE + persisted SQLite state/preferences + live model + real SQL tools",
+  "limitations": [
+    "One run per case; not population accuracy or latency comparison",
+    "Answer substring checks require manual review; no token/cost measurement"
+  ],
+  "cases": [
+    {
+      "name": "explicit_override",
+      "question": "改查2025年乙公司的销售额，按公司分组。",
+      "expected": {
+        "filters": {
+          "year": "2025",
+          "keyword": "乙公司",
+          "group_by": "desc"
+        },
+        "total": "900"
+      },
+      "checks": {
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true
+      },
+      "passed": true,
+      "elapsed_ms": 8059,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "55f2d548197e404bb049e9349416f66a",
+          "profile_id": "f90637d2915c4185ae068c57aacc22b4"
+        },
+        {
+          "type": "intent",
+          "intent": "chat"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "乙公司",
+            "year": "2025"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"乙公司\",\"year\":\"2025\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":900.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"乙公司\",1.0,900.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2025",
+            "keyword": "乙公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**2025年 乙公司 销售额（按顾客公司分组）**\n\n| 顾客公司 | 数量合计 | 票面金额合计 | 明细行数 |\n|---|---|---|---|\n| 乙公司 | 1 | 900.00 | 1 |\n\n- 合计：明细行数 1 行，数量合计 1，票面金额合计 **900.00**（原文未标注币种）\n- 数据来源：已确认销售数据（ocr_rows，status=confirmed），过滤条件：年份=2025、关键词=乙公司\n\n说明：金额为票面金额（sum）合计，非数量×单价计算。"
+        }
+      ],
+      "state_after": {
+        "tool": "rag_summarize",
+        "year": "2025",
+        "keyword": "乙公司",
+        "group_by": "desc"
+      }
+    },
+    {
+      "name": "partial_followup",
+      "question": "继续上次甲公司的查询，只把年份改为2025年，按公司分组。",
+      "expected": {
+        "filters": {
+          "year": "2025",
+          "keyword": "甲公司",
+          "group_by": "desc"
+        },
+        "total": null
+      },
+      "checks": {
+        "completed": true,
+        "query_filters": true,
+        "answer_reports_no_match": true
+      },
+      "passed": true,
+      "elapsed_ms": 2392,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "89e251fc16c64b389e9ca655dc9aac26",
+          "profile_id": "d098172811ba4c2c84a6e76856bfac89"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2025"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "（没有符合条件的已确认数据）"
+        },
+        {
+          "type": "answer",
+          "answer": "已按上次条件继续查询：**甲公司 + 2025年 + 按顾客公司(desc)分组**。\n\n结果：**没有符合条件的已确认数据**。\n\n说明：\n- 统计仅覆盖已确认(confirmed)数据；若 2025 年相关单据尚未确认，则不会计入。\n- 如需核对进度，可让我列出单据确认状态，或查看某张图的识别行。\n\n要不要我改为查 2025 年全部公司（不限甲公司），或先检查一下待确认单据？"
+        }
+      ],
+      "state_after": {
+        "tool": "rag_summarize",
+        "year": "2024",
+        "keyword": "甲公司",
+        "group_by": "desc"
+      }
+    },
+    {
+      "name": "new_global_query",
+      "question": "开始一个新查询：不限制年份和公司，统计全部已确认记录的总销售额。",
+      "expected": {
+        "filters": {
+          "year": "",
+          "keyword": "",
+          "group_by": ""
+        },
+        "total": "1200"
+      },
+      "checks": {
+        "completed": true,
+        "query_filters": false,
+        "answer_contains_total": true
+      },
+      "passed": false,
+      "elapsed_ms": 4302,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "9c3a39f71da14837b235ee2f5f6d2ed4",
+          "profile_id": "7325095f62224b04a567913bb9b2fe78"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "我来统计全部已确认记录的总销售额。"
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"\",\"year\":\"\"},\"group_by\":\"item\",\"summary\":{\"total_rows\":3,\"total_amount\":3.0,\"total_sum\":1200.0},\"total_groups\":3,\"returned_groups\":3,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"商品C\",1.0,900.0,1],[\"商品B\",1.0,200.0,1],[\"商品A\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "",
+            "keyword": "",
+            "group_by": "item"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "**全部已确认记录总销售额统计**\n\n- **票面金额合计（总销售额）：1200.00**\n- 数量合计：3\n- 明细行数：3 行\n\n**按商品分组明细：**\n\n| 商品 | 数量 | 票面金额 | 行数 |\n|---|---|---|---|\n| 商品C | 1 | 900.00 | 1 |\n| 商品B | 1 | 200.00 | 1 |\n| 商品A | 1 | 100.00 | 1 |\n\n数据来源：已确认销售数据（ocr_rows，status=confirmed），未限制年份与公司。\n\n说明：以上金额为票面金额（sum）合计，非数量；原文未明确币种，故未标注货币单位。"
+        }
+      ],
+      "state_after": {
+        "tool": "rag_summarize",
+        "year": "",
+        "keyword": "",
+        "group_by": "item"
+      }
+    },
+    {
+      "name": "unrelated_topic",
+      "question": "新话题：用一句话解释Python列表是什么，不查询销售数据。",
+      "expected": {
+        "no_tools": true
+      },
+      "checks": {
+        "completed": true,
+        "no_tools": true
+      },
+      "passed": true,
+      "elapsed_ms": 942,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "47a20cc345ba4cbdb5ef272de58dd5b8",
+          "profile_id": "8e322205ca064384bb2558d783e0d3e1"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "answer",
+          "answer": "Python 列表是一种有序、可变的序列容器，用方括号 `[]` 表示，可以存放任意类型、任意数量的元素，并支持按索引访问、增删改等操作。"
+        }
+      ],
+      "state_after": {
+        "tool": "rag_summarize",
+        "year": "2024",
+        "keyword": "甲公司",
+        "group_by": "desc"
+      }
+    },
+    {
+      "name": "persisted_preference",
+      "question": "统计2024年甲公司的销售额。",
+      "expected": {
+        "filters": {
+          "year": "2024",
+          "keyword": "甲公司"
+        },
+        "total": "100",
+        "prefix": "统计结果"
+      },
+      "checks": {
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "answer_prefix": true
+      },
+      "passed": true,
+      "elapsed_ms": 2772,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "1dadc3712e264c29990ef73ae0aedc56",
+          "profile_id": "10bfd8440e4e4f6f8a1304c0dc115d92"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "item",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"item\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"商品A\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "item"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "统计结果如下：\n\n- 筛选条件：2024年 + 关键词\"甲公司\"\n- 明细行数：1 行\n- 数量合计：1\n- 票面金额合计：100.00\n- 分组明细（按商品）：商品A，数量 1，票面金额 100.00，1 行\n\n数据来源：已确认销售数据（ocr_rows，status=confirmed）。\n\n说明：本次匹配到的仅 1 条明细，金额以票面金额（sum）为准，未按数量×单价推算；原文未明确币种，故未标注货币单位。如需查看该行明细或按顾客公司维度统计，可继续告知。"
+        }
+      ],
+      "state_after": {
+        "tool": "rag_summarize",
+        "year": "2024",
+        "keyword": "甲公司",
+        "group_by": "item"
+      }
+    },
+    {
+      "name": "current_style_override",
+      "question": "统计2024年甲公司的销售额。本次回答正文必须以本次结果四个字开头，不添加Markdown符号。",
+      "expected": {
+        "filters": {
+          "year": "2024",
+          "keyword": "甲公司"
+        },
+        "total": "100",
+        "prefix": "本次结果"
+      },
+      "checks": {
+        "completed": true,
+        "query_filters": true,
+        "answer_contains_total": true,
+        "answer_prefix": true
+      },
+      "passed": true,
+      "elapsed_ms": 2026,
+      "events": [
+        {
+          "type": "session",
+          "session_id": "db23fa882e124147874f9e3be964d152",
+          "profile_id": "ff588fd42346488fa20bb81eb0340e79"
+        },
+        {
+          "type": "intent",
+          "intent": "rag_query"
+        },
+        {
+          "type": "llm_text",
+          "text": "I'll query the confirmed sales data for 2024 filtered by 甲公司."
+        },
+        {
+          "type": "tool_call",
+          "name": "rag_summarize",
+          "args": {
+            "group_by": "desc",
+            "keyword": "甲公司",
+            "year": "2024"
+          }
+        },
+        {
+          "type": "tool_result",
+          "name": "rag_summarize",
+          "result": "{\"source\":{\"table\":\"ocr_rows\",\"status\":\"confirmed\"},\"filters\":{\"keyword\":\"甲公司\",\"year\":\"2024\"},\"group_by\":\"desc\",\"summary\":{\"total_rows\":1,\"total_amount\":1.0,\"total_sum\":100.0},\"total_groups\":1,\"returned_groups\":1,\"omitted_groups\":0,\"columns\":[\"group\",\"amount\",\"total\",\"rows\"],\"field_meanings\":{\"summary\":{\"total_rows\":\"明细行数（不是单据数）\",\"total_amount\":\"数量合计（不是金额）\",\"total_sum\":\"票面金额合计\"},\"columns\":{\"group\":\"分组名称\",\"amount\":\"数量合计\",\"total\":\"票面金额合计\",\"rows\":\"明细行数\"}},\"rows\":[[\"甲公司\",1.0,100.0,1]],\"note\":\"summary 为全部匹配行的总计；分组可能省略，更多分组请缩小过滤范围。\"}"
+        },
+        {
+          "type": "task_state",
+          "state": {
+            "tool": "rag_summarize",
+            "year": "2024",
+            "keyword": "甲公司",
+            "group_by": "desc"
+          }
+        },
+        {
+          "type": "answer",
+          "answer": "本次结果\n\n统计范围：已确认数据，2024年，顾客公司关键词“甲公司”。\n\n明细行数：1 行\n数量合计：1\n票面金额合计：100\n\n分组明细（按顾客公司）：\n甲公司：数量 1，票面金额 100，明细行数 1\n\n数据来源：数据库 ocr_rows（状态 confirmed），按顾客公司分组统计。原文未提供币种，故未标注货币单位。"
+        }
+      ],
+      "state_after": {
+        "tool": "rag_summarize",
+        "year": "2024",
+        "keyword": "甲公司",
+        "group_by": "desc"
+      }
+    }
+  ]
+}
