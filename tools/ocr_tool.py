@@ -41,11 +41,12 @@ def ocr_recognize(image_path: str) -> str:
         return f"识别到 0 行(模型可能未解析)。原始返回: {result['raw'][:200]}"
 
     file_name = p.name
-    crud.replace_recognized_rows(file_name, rows)
+    doc_id = crud.replace_recognized_rows(file_name, rows)
     n = len(rows)
 
     lines = [f"✅ 识别完成: {n} 行(源图 {file_name}, 状态=待确认, 用时{result['latency_ms']}ms)"]
     for i, r in enumerate(rows, 1):
         cells = "，".join(f"{ROW_LABELS[k]}{r.get(k,'')}" for k in crud.USER_FIELDS if r.get(k))
         lines.append(f"{i}. {cells}")
-    return "\n".join(lines)
+    from agent.runtime_guard import ToolOutcome
+    return ToolOutcome("\n".join(lines), cards=[{'type':'ocr_review', 'doc_id':doc_id}])

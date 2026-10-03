@@ -113,10 +113,23 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
             if not acquired:
                 yield f"data: {json.dumps({'type': 'error', 'code': 'session_busy', 'message': '本会话正在处理上一条请求，请等待完成后重试。'}, ensure_ascii=False)}\n\n"
                 return
+            cards = []
+            user_meta = {}
+            if image_path:
+                from db.database import get_connection
+                attachment_id = uuid.uuid4().hex
+                conn = get_connection()
+                try:
+                    with conn:
+                        conn.execute('INSERT INTO chat_attachments VALUES(?,?,?,?)', (attachment_id, session_id, image_path, image_name))
+                finally:
+                    conn.close()
+                user_meta = {'attachment': {'id':attachment_id,'name':image_name}}
             context = chat_memory.load_messages(session_id, limit=10) if existed else history[-10:]
             command = parse_memory_command(message) if image_path is None else None
             if command is not None:
                 answer = _handle_memory_command(profile_id, *command)
+                chat_memory.save_turn(session_id, user_content, answer)
                 yield f"data: {json.dumps({'type': 'answer', 'answer': answer}, ensure_ascii=False)}\n\n"
                 return
             preferences = preference_memory.list_preferences(profile_id)
@@ -124,8 +137,10 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
                                        preferences=preferences, task_state=task_state.load(session_id)):
                 if ev.get('type') == 'task_state':
                     task_state.save(session_id, ev['state'])
+                if ev.get('type') in ('ocr_review', 'artifact'):
+                    cards.append(ev)
                 if ev.get("type") == "answer":
-                    chat_memory.save_turn(session_id, user_content, ev["answer"])
+                    chat_memory.save_turn(session_id, user_content, ev["answer"], user_meta, {'cards':cards})
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except RuntimeError as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"

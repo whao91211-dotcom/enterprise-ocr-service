@@ -77,7 +77,14 @@ def correct_update_row(row_id: int, fields: str) -> str:
         return f"不支持的字段: {sorted(bad)}（允许: {sorted(ALLOWED_FIELDS)}）"
     if not crud.update_row(row_id, data, reviewer="manual"):
         return f"行 #{row_id} 更新失败(行可能不存在)"
-    return f"✅ 行 #{row_id} 已更新: {data}"
+    from agent.runtime_guard import ToolOutcome
+    conn = crud.get_connection()
+    try:
+        doc_id = conn.execute('SELECT doc_id FROM ocr_rows WHERE id=?', (row_id,)).fetchone()['doc_id']
+    finally:
+        conn.close()
+    return ToolOutcome(f"✅ 行 #{row_id} 已更新: {data}（已重新读取保存结果，修改行待确认）",
+                       cards=[{'type':'ocr_review','doc_id':doc_id}])
 
 
 @tool
@@ -94,4 +101,6 @@ def correct_confirm(file_name: str, reviewer: str = "manual") -> str:
     n = crud.confirm_doc(doc["id"], reviewer)
     if n == 0:
         return f"（{file_name} 没有待确认的行）"
-    return f"✅ {file_name} 的 {n} 行已确认(操作人: {reviewer})"
+    from agent.runtime_guard import ToolOutcome
+    return ToolOutcome(f"✅ {file_name} 的 {n} 行已确认(操作人: {reviewer})",
+                       cards=[{'type':'ocr_review','doc_id':doc['id']}])

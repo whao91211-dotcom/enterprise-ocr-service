@@ -37,7 +37,8 @@ def bounded_call(fn, seconds):
 
 
 class ToolOutcome(str):
-    def __new__(cls, value, failed=False):
+    def __new__(cls, value, failed=False, cards=None):
         result = super().__new__(cls, value)
         result.failed = failed
+        result.cards = cards or []
         return result

@@ -28,6 +28,15 @@ def init_db() -> None:
     conn = get_connection()
     try:
         conn.executescript(SQL_SCHEMA)
+        # Incremental, idempotent migrations preserve existing business/history data.
+        for table, column, definition in [
+            ('documents', 'version', 'INTEGER NOT NULL DEFAULT 0'),
+            ('chat_sessions', 'title', "TEXT NOT NULL DEFAULT ''"),
+            ('chat_messages', 'meta_json', "TEXT NOT NULL DEFAULT '{}'"),
+        ]:
+            columns = {row['name'] for row in conn.execute(f'PRAGMA table_info({table})')}
+            if column not in columns:
+                conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
         conn.commit()
     finally:
         conn.close()

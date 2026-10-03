@@ -16,6 +16,13 @@
 SQL_SCHEMA = """
 PRAGMA journal_mode=WAL;
 
+CREATE TABLE IF NOT EXISTS chat_attachments (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES chat_sessions(id),
+    path TEXT NOT NULL,
+    name TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS documents (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     file_name   TEXT NOT NULL UNIQUE,

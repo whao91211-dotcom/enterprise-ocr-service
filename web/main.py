@@ -38,6 +38,10 @@ app = FastAPI(title="企业文档处理智能体 v2", version="2.0.0")
 
 # Agent 聊天流式端到端(自主多 Tool)
 app.include_router(agent_chat.router)
+from web.product import router as product_router
+from fastapi.staticfiles import StaticFiles
+app.include_router(product_router)
+app.mount('/static', StaticFiles(directory=str(ROOT / 'web' / 'static')), name='static')
 
 
 @app.get("/", response_class=HTMLResponse)

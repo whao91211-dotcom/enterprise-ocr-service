@@ -159,7 +159,7 @@ def ocr_recognize_chat(image_path: str) -> str:
     for i, r in enumerate(rows, 1):
         cells = "，".join(f"{labels[k]}{r.get(k,'')}" for k in crud.USER_FIELDS if r.get(k))
         lines.append(f"{i}. {cells}")
-    return "\n".join(lines)
+    return ToolOutcome("\n".join(lines), cards=[{'type': 'ocr_review', 'doc_id': doc_id}])
 
 
 _TOOLS = [
@@ -310,6 +310,8 @@ def run_agent_events(
                 yield {"type": "answer", "answer": f"{reason}，本次任务已停止。底层操作可能仍在执行；修改或入库前请先核对状态，避免重复执行。"}
                 return
             yield {"type": "tool_result", "name": tc.get("name", ""), "result": result[:2000]}
+            for card in getattr(result, 'cards', []):
+                yield card
             messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
             if tc.get('name') == 'correct_update_row' and result.startswith('✅ 行 #') and not getattr(result, 'failed', False):
                 updated_row_proof = True
@@ -347,11 +349,12 @@ def _run_tool_call(tc: dict[str, Any]) -> str:
     if fn is None:
         return ToolOutcome(f"未知工具: {name}", failed=True)
     try:
-        text = str(fn.invoke(args if isinstance(args, dict) else {"arg": args}))
+        outcome = fn.invoke(args if isinstance(args, dict) else {"arg": args})
+        text = str(outcome)
         failed = text.startswith(("错误:", "识别失败:", "识别到 0 行", "group_by 仅支持:",
                                   "top_k 必须", "fields 不是合法", "fields 须为", "不支持的字段:"))
         if name == 'correct_update_row' and '更新失败(行可能不存在)' in text:
             failed = True
-        return ToolOutcome(text, failed=failed)
+        return ToolOutcome(text, failed=failed or getattr(outcome, 'failed', False), cards=getattr(outcome, 'cards', []))
     except Exception as e:  # noqa: BLE001
         return ToolOutcome(f"工具执行出错: {e}", failed=True)

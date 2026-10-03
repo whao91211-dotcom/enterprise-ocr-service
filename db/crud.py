@@ -104,6 +104,7 @@ def replace_recognized_rows(file_name: str, rows: list[dict[str, Any]]) -> int:
                                   (file_name,)).fetchone()['id'])
         conn.execute('DELETE FROM ocr_rows WHERE doc_id=?', (doc_id,))
         _insert_rows(conn, doc_id, rows)
+        conn.execute('UPDATE documents SET version=version+1 WHERE id=?', (doc_id,))
         conn.commit()
         return doc_id
     except Exception:
@@ -139,18 +140,8 @@ def delete_rows_by_doc(doc_id: int) -> int:
 
 def confirm_doc(doc_id: int, reviewer: str = "agent") -> int:
     """把某图全部行标记为已确认。返回更新行数。"""
-    conn = get_connection()
-    try:
-        now = "datetime('now','localtime')"
-        cur = conn.execute(
-            f"UPDATE ocr_rows SET status='confirmed', modified_by=?, modified_at={now} "
-            "WHERE doc_id=?",
-            (reviewer, doc_id),
-        )
-        conn.commit()
-        return cur.rowcount
-    finally:
-        conn.close()
+    from db.review import confirm
+    return confirm(doc_id, reviewer=reviewer)['changed']
 
 
 def update_row(
@@ -159,25 +150,19 @@ def update_row(
     reviewer: str = "manual",
 ) -> bool:
     """人工修改单行。fields 键为无下划线用户键(desc/date/from/sum/item/...)。"""
-    mapped: dict[str, Any] = {}
-    for k, v in fields.items():
-        dbk = _USER_TO_DB.get(k, k)
-        if dbk in ROW_FIELDS:
-            mapped[dbk] = v
-    if not mapped:
-        return False
-    sets = ", ".join(f"{k} = ?" for k in mapped)
+    from db.review import save_edits
     conn = get_connection()
     try:
-        conn.execute(
-            f"UPDATE ocr_rows SET {sets}, modified_by=?, "
-            "modified_at=datetime('now','localtime') WHERE id=?",
-            (*mapped.values(), reviewer, row_id),
-        )
-        conn.commit()
-        return True
+        row = conn.execute('SELECT doc_id FROM ocr_rows WHERE id=?', (row_id,)).fetchone()
     finally:
         conn.close()
+    if not row:
+        return False
+    try:
+        save_edits(row['doc_id'], None, [{'id': row_id, 'fields': fields}], reviewer)
+        return True
+    except (ValueError, LookupError):
+        return False
 
 
 # ---------- 聚合/检索 ----------

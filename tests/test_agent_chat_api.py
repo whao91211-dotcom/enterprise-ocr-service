@@ -57,6 +57,31 @@ def _events(response):
             for part in response.text.strip().split("\n\n")]
 
 
+def test_review_cards_and_attachment_survive_reload(chat_client, monkeypatch):
+    from web.product import router
+    chat_client.app.include_router(router)
+    def recognize(message, history, image_path, **kwargs):
+        yield {'type':'ocr_review','doc_id':1}
+        yield {'type':'answer','answer':'识别完成，请核对数据。需要修改吗？'}
+    monkeypatch.setattr(chat_client.agent_chat_module, 'run_agent_events', recognize)
+    response = chat_client.post('/api/agent/chat/upload', data={'message':'识别'},
+        files={'file':('synthetic.png',b'image-data','image/png')})
+    sid = _events(response)[0]['session_id']
+    page = chat_client.get(f'/api/agent/sessions/{sid}/messages').json()
+    assert page['messages'][1]['meta']['cards'] == [{'type':'ocr_review','doc_id':1}]
+    attachment = page['messages'][0]['meta']['attachment']
+    assert chat_client.get('/api/attachments/'+attachment['id']).content == b'image-data'
+    assert chat_client.get('/api/agent/sessions').json()['items'][0]['id'] == sid
+
+
+def test_memory_command_is_visible_in_history(chat_client):
+    response = chat_client.post('/api/agent/chat',json={'message':'记住：回答简洁'})
+    sid = _events(response)[0]['session_id']
+    messages = chat_client.get(f'/api/agent/sessions/{sid}').json()['messages']
+    assert messages[0]['content']=='记住：回答简洁'
+    assert '已记住' in messages[1]['content']
+
+
 def test_same_session_busy_request_is_not_executed_or_saved(chat_client, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Event
