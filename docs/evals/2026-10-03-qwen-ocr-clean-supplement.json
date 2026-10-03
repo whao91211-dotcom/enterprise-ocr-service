@@ -1,0 +1,82 @@
+{
+  "dataset": "synthetic-ocr-v1, generated locally; no real invoices",
+  "model": "qwen-vl-ocr",
+  "selected_cases": [
+    "clean"
+  ],
+  "cases": [
+    {
+      "id": "clean",
+      "expected": [
+        [
+          "合成甲公司",
+          "2026-10-03",
+          "合成供应商",
+          "打印纸",
+          "2",
+          "50",
+          "0",
+          "100"
+        ],
+        [
+          "合成乙公司",
+          "2026-10-03",
+          "合成供应商",
+          "墨盒",
+          "3",
+          "80",
+          "0",
+          "240"
+        ]
+      ],
+      "image": "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-clean-supplement-2026-10-03\\clean.png",
+      "rows": [
+        {
+          "desc": "合成甲公司",
+          "date": "2026-10-03",
+          "from": "合成供应商",
+          "item": "打印纸",
+          "amount": "2",
+          "price": "50",
+          "tax": "0",
+          "sum": "100"
+        },
+        {
+          "desc": "合成乙公司",
+          "date": "2026-10-03",
+          "from": "合成供应商",
+          "item": "墨盒",
+          "amount": "3",
+          "price": "80",
+          "tax": "0",
+          "sum": "240"
+        }
+      ],
+      "raw": "```json\n{\n    \"rows\": [\n        {\n            \"desc\": \"合成甲公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"合成供应商\",\n            \"item\": \"打印纸\",\n            \"amount\": \"2\",\n            \"price\": \"50\",\n            \"tax\": \"0\",\n            \"sum\": \"100\"\n        },\n        {\n            \"desc\": \"合成乙公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"合成供应商\",\n            \"item\": \"墨盒\",\n            \"amount\": \"3\",\n            \"price\": \"80\",\n            \"tax\": \"0\",\n            \"sum\": \"240\"\n        }\n    ]\n}\n```",
+      "usage": {
+        "prompt_tokens": 755,
+        "completion_tokens": 166,
+        "total_tokens": 921,
+        "prompt_tokens_details": {
+          "image_tokens": 602,
+          "text_tokens": 153
+        },
+        "completion_tokens_details": {
+          "text_tokens": 166
+        }
+      },
+      "provider": "qwen",
+      "ocr_latency_ms": 2577,
+      "field_correct": 16,
+      "field_count": 16,
+      "row_count_correct": true,
+      "passed": true,
+      "pending_ingestion": true,
+      "elapsed_ms": 9146
+    }
+  ],
+  "limits": [
+    "Clean rendered images; not real invoice accuracy or an InternVL comparison",
+    "No real documents sent to cloud; row alignment assumes preserved order"
+  ]
+}

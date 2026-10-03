@@ -34,6 +34,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--artifacts-root', type=Path, required=True)
+    parser.add_argument('--cases', nargs='+', choices=[ident for ident, _ in CASES],
+                        default=[ident for ident, _ in CASES])
     args = parser.parse_args()
     from PIL import Image, ImageDraw, ImageFont
     from tools.ocr_client import recognize, OcrError
@@ -44,11 +46,13 @@ def main():
     font = ImageFont.truetype(str(font_path), 27)
     args.artifacts_root.mkdir(parents=True, exist_ok=True)
     report = {'dataset': 'synthetic-ocr-v1, generated locally; no real invoices', 'model': config.QWEN_OCR_MODEL,
-              'cases': [], 'limits': ['Three clean rendered images; not real invoice accuracy or an InternVL comparison',
+              'selected_cases': args.cases, 'cases': [], 'limits': ['Clean rendered images; not real invoice accuracy or an InternVL comparison',
                                      'No real documents sent to cloud; row alignment assumes preserved order']}
     headers = ['顾客公司','发注日','源公司','商品','数量','单价','税率','票面金额']
     widths = [260, 230, 260, 240, 130, 130, 130, 180]
     for ident, rows in CASES:
+        if ident not in args.cases:
+            continue
         image = Image.new('RGB', (sum(widths)+40, 160+80*(len(rows)+1)), 'white')
         draw = ImageDraw.Draw(image)
         draw.text((25, 20), '合成销售单据 - 仅用于接口测试', font=font, fill='black')
@@ -68,6 +72,7 @@ def main():
             checks = [same(observed[i].get(key,''), row[j], j >= 4)
                       if i < len(observed) else False for i,row in enumerate(rows) for j,key in enumerate(FIELDS)]
             case.update(rows=observed, raw=result['raw'], usage=result['usage'], provider=result['provider'],
+                        ocr_latency_ms=result['latency_ms'],
                         field_correct=sum(checks), field_count=len(checks), row_count_correct=len(observed)==len(rows),
                         passed=all(checks) and len(observed)==len(rows))
             # Check the real ingestion tool with this already obtained model result,

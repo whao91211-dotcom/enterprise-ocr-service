@@ -1,0 +1,13 @@
+{
+  "renderer": "Word COM PDF export + PDFium",
+  "reports": [
+    {
+      "source": "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-full-flow-final-2026-10-03\\reports\\销售报告_2026_e80cd90bab8f4d5a806c0eba61d2083d.docx",
+      "pdf": "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-full-flow-final-2026-10-03\\reports\\销售报告_2026_e80cd90bab8f4d5a806c0eba61d2083d.pdf",
+      "page_images": [
+        "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-full-flow-final-2026-10-03\\reports\\销售报告_2026_e80cd90bab8f4d5a806c0eba61d2083d_page_1.png",
+        "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-full-flow-final-2026-10-03\\reports\\销售报告_2026_e80cd90bab8f4d5a806c0eba61d2083d_page_2.png"
+      ]
+    }
+  ]
+}

@@ -107,9 +107,7 @@ async def ocr_upload(file: UploadFile = File(...)):
     if not rows:
         raise HTTPException(422, f"识别到 0 行: {result['raw'][:150]}")
     file_name = file.filename or saved.name
-    doc_id = crud.upsert_document(file_name, None)
-    crud.delete_rows_by_doc(doc_id)
-    crud.insert_rows(doc_id, rows)
+    doc_id = crud.replace_recognized_rows(file_name, rows)
     return {
         "summary": f"{file_name}: {len(rows)} 行(待确认), {result['latency_ms']}ms",
         "rows": rows,

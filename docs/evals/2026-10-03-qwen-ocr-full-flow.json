@@ -1,0 +1,40 @@
+{
+  "mode": "real Qwen OCR and DeepSeek via HTTP, isolated synthetic business data",
+  "model": "deepseek-chat",
+  "cases": [
+    {
+      "id": "ocr_upload",
+      "events": [
+        {
+          "type": "session",
+          "session_id": "b3642ed26d9a4ffbadd8a3c027b83561",
+          "profile_id": "91ec7c96e4d54783bd36023dc433a0ef"
+        },
+        {
+          "type": "intent",
+          "intent": "ocr_recognize"
+        },
+        {
+          "type": "answer",
+          "answer": "模型调用失败，本次任务已停止。Connection error."
+        }
+      ],
+      "checks": {
+        "one_document": false,
+        "one_ocr_call": false,
+        "two_pending_rows": false,
+        "all_16_fields": false,
+        "no_confirmed_rows": true,
+        "answer": true,
+        "no_error": true
+      },
+      "passed": false,
+      "elapsed_ms": 11219
+    }
+  ],
+  "artifacts": [],
+  "limits": [
+    "One workflow; not representative end-to-end success rate",
+    "No real confidential invoices sent; original InternVL remains offline"
+  ]
+}

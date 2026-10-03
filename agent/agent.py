@@ -152,9 +152,7 @@ def ocr_recognize_chat(image_path: str) -> str:
     if not rows:
         return f"识别到 0 行。原始返回: {result['raw'][:200]}"
     file_name = p.name
-    doc_id = crud.upsert_document(file_name, None)
-    crud.delete_rows_by_doc(doc_id)
-    crud.insert_rows(doc_id, rows)
+    doc_id = crud.replace_recognized_rows(file_name, rows)
     labels = {"desc": "顾客公司", "date": "发注日", "from": "源公司", "item": "项目",
               "amount": "数量", "price": "单价", "tax": "税率", "sum": "金额"}
     lines = [f"✅ 识别完成(doc#{doc_id}, {len(rows)} 行, 状态=待确认, {result['latency_ms']}ms)"]
@@ -245,6 +243,8 @@ def run_agent_events(
     last_failure = None
     artifact_proofs: set[str] = set()
     corrected_file_claim = False
+    updated_row_proof = False
+    corrected_update_claim = False
     for _step in range(8):
         try:
             resp = bounded_call(lambda: llm_tools.invoke(messages),
@@ -256,6 +256,17 @@ def run_agent_events(
         content = getattr(resp, "content", "") or ""
         tool_calls = getattr(resp, "tool_calls", None) or []
         if not tool_calls:
+            # A text-only reply cannot establish that a requested row edit happened.
+            update_claim = re.search(
+                r'已(?:按[^\n。；]{0,20})?(?:修改|更新)|行[^\n。；]{0,25}已(?:修改|更新)',
+                str(content))
+            if re.search(r'修改|改为|更新', user_input) and update_claim and not updated_row_proof:
+                if corrected_update_claim:
+                    yield {'type': 'answer', 'answer': '未修改：本轮没有可验证的修改工具成功结果，本次任务已停止。'}
+                    return
+                corrected_update_claim = True
+                messages.append(SystemMessage(content='本轮尚未成功调用 correct_update_row。不得声称已修改数据库或编造修改后数据；请按用户授权调用修改工具，或如实说明尚未修改。'))
+                continue
             # Only gate positive completion claims, never explanations or explicit failures.
             claimed_artifacts = set()
             if re.search(r'(?:报告|文档|Word)[^\n。]{0,35}(?:已生成|生成成功)|(?:已生成|生成成功)[^\n。]{0,35}(?:报告|文档|Word)', str(content), re.I):
@@ -300,6 +311,8 @@ def run_agent_events(
                 return
             yield {"type": "tool_result", "name": tc.get("name", ""), "result": result[:2000]}
             messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
+            if tc.get('name') == 'correct_update_row' and result.startswith('✅ 行 #') and not getattr(result, 'failed', False):
+                updated_row_proof = True
             prefix = {'generate_report': '报告已生成:', 'plot_chart': '图表已生成:'}.get(tc.get('name'))
             if prefix and result.startswith(prefix) and not getattr(result, 'failed', False):
                 artifact_path = result[len(prefix):].split('（共', 1)[0].split(' (共', 1)[0].split('\n', 1)[0].strip()

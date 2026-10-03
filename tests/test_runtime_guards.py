@@ -182,3 +182,41 @@ def test_ocr_uses_existing_longer_budget(runtime):
          patch.object(runtime, 'get_llm', return_value=ScriptedModel([[call('ocr_recognize_chat', {})]])):
         events = list(runtime.run_agent_events('识别'))
     assert events[-1]['answer'] == '替身回答'
+
+
+def test_update_claim_without_tool_is_corrected_before_return(runtime):
+    from langchain_core.messages import AIMessage
+
+    class Model(ScriptedModel):
+        def invoke(self, messages):
+            self.steps += 1
+            if self.steps == 1:
+                return AIMessage(content='已按你的要求修改行 ID 1，未确认。')
+            if self.steps == 2:
+                return AIMessage(content='', tool_calls=[call('correct_update_row',
+                    {'row_id': 1, 'fields': '{"sum":"150"}'}, 'update')])
+            return AIMessage(content='行 #1 已更新，未确认。')
+
+    class Update:
+        def invoke(self, args):
+            return '✅ 行 #1 已更新: {"sum":"150"}'
+
+    with patch.object(runtime, 'get_llm', return_value=Model()), \
+         patch.dict(runtime._TOOL_BY_NAME, {'correct_update_row': Update()}):
+        events = list(runtime.run_agent_events('请修改行1的sum为150，暂时不要确认。'))
+    assert sum(e['type']=='tool_call' for e in events) == 1
+
+
+def test_repeated_update_claim_without_tool_stops(runtime):
+    from langchain_core.messages import AIMessage
+
+    class Model(ScriptedModel):
+        def invoke(self, messages):
+            self.steps += 1
+            return AIMessage(content='已按你的要求修改行 ID 1。')
+
+    model = Model()
+    with patch.object(runtime, 'get_llm', return_value=model):
+        events = list(runtime.run_agent_events('请修改行1的sum为150。'))
+    assert model.steps == 2
+    assert '未修改' in events[-1]['answer']

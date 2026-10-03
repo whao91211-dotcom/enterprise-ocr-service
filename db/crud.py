@@ -62,28 +62,53 @@ def upsert_document(file_name: str, sha256: str | None = None) -> int:
 # ---------- ocr_rows ----------
 
 
+def _insert_rows(conn, doc_id: int, rows: list[dict[str, Any]]) -> None:
+    for seq, r in enumerate(rows, start=1):
+        values = [
+            r.get("desc", r.get("desc_", "")),
+            r.get("date", r.get("date_", "")),
+            r.get("from", r.get("from_", "")),
+            r.get("item", ""),
+            r.get("amount", ""),
+            r.get("price", ""),
+            r.get("tax", ""),
+            r.get("sum", r.get("sum_", "")),
+        ]
+        conn.execute(
+            f"INSERT INTO ocr_rows(doc_id, seq, {','.join(ROW_FIELDS)}, status) "
+            f"VALUES (?, ?, {','.join(['?'] * len(ROW_FIELDS))}, 'pending')",
+            (doc_id, seq, *values),
+        )
+
+
 def insert_rows(doc_id: int, rows: list[dict[str, Any]]) -> int:
     """插入一批识别行(状态 pending), 返回行数。rows 的键用无下划线名(desc/date/from/sum)。"""
     conn = get_connection()
     try:
-        for seq, r in enumerate(rows, start=1):
-            values = [
-                r.get("desc", r.get("desc_", "")),
-                r.get("date", r.get("date_", "")),
-                r.get("from", r.get("from_", "")),
-                r.get("item", ""),
-                r.get("amount", ""),
-                r.get("price", ""),
-                r.get("tax", ""),
-                r.get("sum", r.get("sum_", "")),
-            ]
-            conn.execute(
-                f"INSERT INTO ocr_rows(doc_id, seq, {','.join(ROW_FIELDS)}, status) "
-                f"VALUES (?, ?, {','.join(['?'] * len(ROW_FIELDS))}, 'pending')",
-                (doc_id, seq, *values),
-            )
+        _insert_rows(conn, doc_id, rows)
         conn.commit()
         return len(rows)
+    finally:
+        conn.close()
+
+
+def replace_recognized_rows(file_name: str, rows: list[dict[str, Any]]) -> int:
+    """Create/find document and replace its rows atomically; failure retains old rows."""
+    if not rows:
+        raise ValueError('Cannot replace existing rows with an empty OCR result')
+    conn = get_connection()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        conn.execute('INSERT OR IGNORE INTO documents(file_name) VALUES(?)', (file_name,))
+        doc_id = int(conn.execute('SELECT id FROM documents WHERE file_name=?',
+                                  (file_name,)).fetchone()['id'])
+        conn.execute('DELETE FROM ocr_rows WHERE doc_id=?', (doc_id,))
+        _insert_rows(conn, doc_id, rows)
+        conn.commit()
+        return doc_id
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 

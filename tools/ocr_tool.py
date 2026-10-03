@@ -41,10 +41,8 @@ def ocr_recognize(image_path: str) -> str:
         return f"识别到 0 行(模型可能未解析)。原始返回: {result['raw'][:200]}"
 
     file_name = p.name
-    doc_id = crud.upsert_document(file_name, None)
-    # 同图重复识别: 覆盖旧行(先删该图全部旧行)
-    crud.delete_rows_by_doc(doc_id)
-    n = crud.insert_rows(doc_id, rows)
+    crud.replace_recognized_rows(file_name, rows)
+    n = len(rows)
 
     lines = [f"✅ 识别完成: {n} 行(源图 {file_name}, 状态=待确认, 用时{result['latency_ms']}ms)"]
     for i, r in enumerate(rows, 1):
