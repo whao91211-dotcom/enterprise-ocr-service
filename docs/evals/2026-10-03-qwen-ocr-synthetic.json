@@ -1,0 +1,234 @@
+{
+  "dataset": "synthetic-ocr-v1, generated locally; no real invoices",
+  "model": "qwen-vl-ocr",
+  "cases": [
+    {
+      "id": "clean",
+      "expected": [
+        [
+          "合成甲公司",
+          "2026-10-03",
+          "合成供应商",
+          "打印纸",
+          "2",
+          "50",
+          "0",
+          "100"
+        ],
+        [
+          "合成乙公司",
+          "2026-10-03",
+          "合成供应商",
+          "墨盒",
+          "3",
+          "80",
+          "0",
+          "240"
+        ]
+      ],
+      "image": "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-synthetic-2026-10-03\\clean.png",
+      "rows": [
+        {
+          "desc": "合成甲公司",
+          "date": "2026-10-03",
+          "from": "合成供应商",
+          "item": "打印纸",
+          "amount": "2",
+          "price": "50",
+          "tax": "0",
+          "sum": "100"
+        },
+        {
+          "desc": "合成乙公司",
+          "date": "2026-10-03",
+          "from": "合成供应商",
+          "item": "墨盒",
+          "amount": "3",
+          "price": "80",
+          "tax": "0",
+          "sum": "240"
+        }
+      ],
+      "raw": "```json\n{\n    \"rows\": [\n        {\n            \"desc\": \"合成甲公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"合成供应商\",\n            \"item\": \"打印纸\",\n            \"amount\": \"2\",\n            \"price\": \"50\",\n            \"tax\": \"0\",\n            \"sum\": \"100\"\n        },\n        {\n            \"desc\": \"合成乙公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"合成供应商\",\n            \"item\": \"墨盒\",\n            \"amount\": \"3\",\n            \"price\": \"80\",\n            \"tax\": \"0\",\n            \"sum\": \"240\"\n        }\n    ]\n}\n```",
+      "usage": {
+        "prompt_tokens": 755,
+        "completion_tokens": 166,
+        "total_tokens": 921,
+        "prompt_tokens_details": {
+          "image_tokens": 602,
+          "text_tokens": 153
+        },
+        "completion_tokens_details": {
+          "text_tokens": 166
+        }
+      },
+      "provider": "qwen",
+      "field_correct": 16,
+      "field_count": 16,
+      "row_count_correct": true,
+      "passed": true,
+      "pending_ingestion": true,
+      "elapsed_ms": 9934
+    },
+    {
+      "id": "discount_zero",
+      "expected": [
+        [
+          "测试公司",
+          "2026-10-03",
+          "测试供应商",
+          "商品A",
+          "2",
+          "999",
+          "0",
+          "100"
+        ],
+        [
+          "测试公司",
+          "2026-10-03",
+          "测试供应商",
+          "折扣",
+          "0",
+          "0",
+          "0",
+          "-25"
+        ],
+        [
+          "测试公司",
+          "2026-10-03",
+          "测试供应商",
+          "赠品",
+          "7",
+          "10",
+          "0",
+          "0"
+        ]
+      ],
+      "image": "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-synthetic-2026-10-03\\discount_zero.png",
+      "rows": [
+        {
+          "desc": "测试公司",
+          "date": "2026-10-03",
+          "from": "测试供应商",
+          "item": "商品A",
+          "amount": "2",
+          "price": "999",
+          "tax": "0",
+          "sum": "100"
+        },
+        {
+          "desc": "测试公司",
+          "date": "2026-10-03",
+          "from": "测试供应商",
+          "item": "折扣",
+          "amount": "0",
+          "price": "0",
+          "tax": "0",
+          "sum": "-25"
+        },
+        {
+          "desc": "测试公司",
+          "date": "2026-10-03",
+          "from": "测试供应商",
+          "item": "赠品",
+          "amount": "7",
+          "price": "10",
+          "tax": "0",
+          "sum": "0"
+        }
+      ],
+      "raw": "```json\n{\n    \"rows\": [\n        {\n            \"desc\": \"测试公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"测试供应商\",\n            \"item\": \"商品A\",\n            \"amount\": \"2\",\n            \"price\": \"999\",\n            \"tax\": \"0\",\n            \"sum\": \"100\"\n        },\n        {\n            \"desc\": \"测试公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"测试供应商\",\n            \"item\": \"折扣\",\n            \"amount\": \"0\",\n            \"price\": \"0\",\n            \"tax\": \"0\",\n            \"sum\": \"-25\"\n        },\n        {\n            \"desc\": \"测试公司\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"测试供应商\",\n            \"item\": \"赠品\",\n            \"amount\": \"7\",\n            \"price\": \"10\",\n            \"tax\": \"0\",\n            \"sum\": \"0\"\n        }\n    ]\n}\n```",
+      "usage": {
+        "prompt_tokens": 905,
+        "completion_tokens": 235,
+        "total_tokens": 1140,
+        "prompt_tokens_details": {
+          "image_tokens": 752,
+          "text_tokens": 153
+        },
+        "completion_tokens_details": {
+          "text_tokens": 235
+        }
+      },
+      "provider": "qwen",
+      "field_correct": 24,
+      "field_count": 24,
+      "row_count_correct": true,
+      "passed": true,
+      "pending_ingestion": true,
+      "elapsed_ms": 4692
+    },
+    {
+      "id": "japanese",
+      "expected": [
+        [
+          "テスト会社",
+          "2026-10-03",
+          "サンプル商社",
+          "コピー用紙",
+          "2",
+          "50",
+          "0",
+          "100"
+        ],
+        [
+          "テスト会社",
+          "2026-10-03",
+          "サンプル商社",
+          "インク",
+          "3",
+          "80",
+          "0",
+          "240"
+        ]
+      ],
+      "image": "C:\\Users\\wuhao\\Documents\\Enterprise_Agent\\enterprise_ocr_service\\data\\benchmark_v1\\qwen-ocr-synthetic-2026-10-03\\japanese.png",
+      "rows": [
+        {
+          "desc": "テスト会社",
+          "date": "2026-10-03",
+          "from": "サンプル商社",
+          "item": "コピー用紙",
+          "amount": "2",
+          "price": "50",
+          "tax": "0",
+          "sum": "100"
+        },
+        {
+          "desc": "テスト会社",
+          "date": "2026-10-03",
+          "from": "サンプル商社",
+          "item": "インク",
+          "amount": "3",
+          "price": "80",
+          "tax": "0",
+          "sum": "240"
+        }
+      ],
+      "raw": "```json\n{\n    \"rows\": [\n        {\n            \"desc\": \"テスト会社\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"サンプル商社\",\n            \"item\": \"コピー用紙\",\n            \"amount\": \"2\",\n            \"price\": \"50\",\n            \"tax\": \"0\",\n            \"sum\": \"100\"\n        },\n        {\n            \"desc\": \"テスト会社\",\n            \"date\": \"2026-10-03\",\n            \"from\": \"サンプル商社\",\n            \"item\": \"インク\",\n            \"amount\": \"3\",\n            \"price\": \"80\",\n            \"tax\": \"0\",\n            \"sum\": \"240\"\n        }\n    ]\n}\n```",
+      "usage": {
+        "prompt_tokens": 755,
+        "completion_tokens": 173,
+        "total_tokens": 928,
+        "prompt_tokens_details": {
+          "image_tokens": 602,
+          "text_tokens": 153
+        },
+        "completion_tokens_details": {
+          "text_tokens": 173
+        }
+      },
+      "provider": "qwen",
+      "field_correct": 16,
+      "field_count": 16,
+      "row_count_correct": true,
+      "passed": true,
+      "pending_ingestion": true,
+      "elapsed_ms": 3010
+    }
+  ],
+  "limits": [
+    "Three clean rendered images; not real invoice accuracy or an InternVL comparison",
+    "No real documents sent to cloud; row alignment assumes preserved order"
+  ]
+}

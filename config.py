@@ -51,6 +51,14 @@ OCR_MAX_TOKENS = int(_get("OCR_MAX_TOKENS", "1024"))
 OCR_TEMPERATURE = float(_get("OCR_TEMPERATURE", "0.7"))
 OCR_TOP_P = float(_get("OCR_TOP_P", "0.8"))
 
+# Explicit routing: no hidden network fallback or credential reuse.
+OCR_PROVIDER = _get('OCR_PROVIDER', 'internvl')
+QWEN_OCR_BASE_URL = _get('QWEN_OCR_BASE_URL', 'https://dashscope.aliyuncs.com/compatible-mode/v1')
+QWEN_OCR_MODEL = _get('QWEN_OCR_MODEL', 'qwen-vl-ocr')
+QWEN_OCR_API_KEY = _get('QWEN_OCR_API_KEY', '')
+QWEN_OCR_TIMEOUT_SECONDS = float(_get('QWEN_OCR_TIMEOUT_SECONDS', '60'))
+QWEN_OCR_MAX_TOKENS = int(_get('QWEN_OCR_MAX_TOKENS', '4096'))
+
 # ---- Agent LLM (DeepSeek) ----
 DEEPSEEK_API_KEY = _get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = _get("DEEPSEEK_MODEL", "deepseek-chat")

@@ -1,0 +1,49 @@
+{
+  "mode": "Real model decisions, real Qwen OCR, actual chat upload + isolated SQLite",
+  "dataset": "synthetic clean two-row image only",
+  "checks": {
+    "exactly_one_ocr_call": true,
+    "exact_rows": true,
+    "pending_only": true,
+    "confirmed_stats_excluded": true,
+    "field_values": true,
+    "answer": true,
+    "no_error": true
+  },
+  "passed": true,
+  "events": [
+    {
+      "type": "session",
+      "session_id": "35243ece268c488f9d4b74fd395ebdd5",
+      "profile_id": "5c2dc38e4352415fbf59c7010cc1b249"
+    },
+    {
+      "type": "intent",
+      "intent": "ocr_recognize"
+    },
+    {
+      "type": "llm_text",
+      "text": "I'll recognize the sales document and add it to the database as a pending draft."
+    },
+    {
+      "type": "tool_call",
+      "name": "ocr_recognize_chat",
+      "args": {
+        "image_path": "C:\\Users\\wuhao\\AppData\\Local\\Temp\\qwen_ocr_chat_n118d4wn\\uploads\\4cbdb7f8849748e1b77e63757901e050.png"
+      }
+    },
+    {
+      "type": "tool_result",
+      "name": "ocr_recognize_chat",
+      "result": "✅ 识别完成(doc#1, 2 行, 状态=待确认, 2266ms)\n1. 顾客公司合成甲公司，发注日2026-10-03，源公司合成供应商，项目打印纸，数量2，单价50，税率0，金额100\n2. 顾客公司合成乙公司，发注日2026-10-03，源公司合成供应商，项目墨盒，数量3，单价80，税率0，金额240"
+    },
+    {
+      "type": "answer",
+      "answer": "识别完成，已入库为**待确认**草稿（未确认、未做统计）。\n\n**单据 doc#1**（源文件：4cbdb7f8849748e1b77e63757901e050.png，共 2 行，状态=待确认）\n\n| # | 顾客公司 | 发注日 | 源公司 | 项目 | 数量 | 单价 | 税率 | 票面金额 |\n|---|---|---|---|---|---|---|---|---|\n| 1 | 合成甲公司 | 2026-10-03 | 合成供应商 | 打印纸 | 2 | 50 | 0 | 100 |\n| 2 | 合成乙公司 | 2026-10-03 | 合成供应商 | 墨盒 | 3 | 80 | 0 | 240 |\n\n说明：\n- 以上为 OCR 识别结果，仅写入待确认草稿，**未确认**，因此不会进入 RAG/统计。\n- 如需核对或修改，可查看该图全部识别行并逐行修正；确认无误后再执行确认操作。\n- 本次未做任何统计或金额汇总。"
+    }
+  ],
+  "elapsed_ms": 12302,
+  "limits": [
+    "One clean image workflow; not real invoice accuracy or long-term availability"
+  ]
+}
