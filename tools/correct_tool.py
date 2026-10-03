@@ -75,15 +75,26 @@ def correct_update_row(row_id: int, fields: str) -> str:
     bad = set(data) - ALLOWED_FIELDS
     if bad:
         return f"不支持的字段: {sorted(bad)}（允许: {sorted(ALLOWED_FIELDS)}）"
-    if not crud.update_row(row_id, data, reviewer="manual"):
-        return f"行 #{row_id} 更新失败(行可能不存在)"
+    from db import review
     from agent.runtime_guard import ToolOutcome
     conn = crud.get_connection()
     try:
-        doc_id = conn.execute('SELECT doc_id FROM ocr_rows WHERE id=?', (row_id,)).fetchone()['doc_id']
+        row = conn.execute('SELECT doc_id FROM ocr_rows WHERE id=?', (row_id,)).fetchone()
     finally:
         conn.close()
-    return ToolOutcome(f"✅ 行 #{row_id} 已更新: {data}（已重新读取保存结果，修改行待确认）",
+    if not row:
+        return f"行 #{row_id} 更新失败(行可能不存在)"
+    doc_id = row['doc_id']
+    try:
+        result = review.save_edits(doc_id, None, [{'id': row_id, 'fields': data}])
+    except (ValueError, LookupError) as exc:
+        return f"行 #{row_id} 更新失败: {exc}"
+    saved = next(r for r in result['rows'] if r['id'] == row_id)
+    changes = result['changes']
+    detail = '；'.join(f"{key}: {change['before'][key]} → {saved[key]}"
+                      for change in changes for key in change['after']) or '数据没有变化'
+    status = '待确认' if saved['status'] == 'pending' else '已确认'
+    return ToolOutcome(f"✅ 行 #{row_id} 已更新: {detail}（已重新读取保存结果，{status}）",
                        cards=[{'type':'ocr_review','doc_id':doc_id}])
 
 

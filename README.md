@@ -1,7 +1,7 @@
 # DocMind Agent · 企业文档处理智能体
 
-基于 LangChain Agent（DeepSeek LLM）的企业文档处理智能体，**以 Agent 为中心**装配 6 组可插拔 Tool。
-识别 InternVL 微调模型的销售/支票单据 → 人工确认 → SQLite 入库 → SQL 直查统计 → 画图 / 生成报告。
+基于 LangChain Agent（DeepSeek LLM）的企业文档处理智能体，使用 ReAct 迭代工具调用，支持销售单据核对和办公文件交付。
+销售单据识别（InternVL 或 Qwen OCR）→ 聊天内核对修改 → 明确确认 → SQL 统计 → Word / Excel / PPT。
 
 > 当前分支：`feat/agent-v2`（默认分支）。旧版（双 FastAPI 服务）保留在 `master`。
 
@@ -13,23 +13,24 @@
    ▼
 LangChain Agent (DeepSeek function-calling, 自主决定调哪个 Tool)
    │
-   ├─ Tool1 OCR       ocr_recognize          InternVL(9052) 识别 → SQLite(待确认)
-   ├─ Tool2 Correct   correct_list/show/update/confirm   人工核对/修改(模型~80%)
+   ├─ Tool1 OCR       ocr_recognize          InternVL / Qwen OCR → SQLite(待确认)
+   ├─ Tool2 Correct   correct_list/show/update/confirm   人工核对/修改，修改后重新待确认
    ├─ Tool3 检索      rag_query              已确认数据明细(SQL WHERE, 关键词/年份)
    ├─ Tool4 统计      rag_summarize          聚合(GROUP BY + SUM, 数量/金额)
    ├─ Tool5 画图      plot_chart             统计图(matplotlib → charts/*.png)
-   └─ Tool6 报表      generate_report        Word 统计报告(docx → reports/)
+   ├─ Word           generate_report        销售统计报告
+   └─ Excel / PPT    generate_excel / generate_presentation   完整明细和销售汇报
    │
    ▼
 SQLite (data/agent.db): documents(图) + ocr_rows(识别行, status=pending/confirmed)
 ```
 
-**为什么 6 个 Tool**（每个补一个短板）：
+**工具职责**：
 1. DeepSeek 是"盲"的 → OCR Tool（InternVL 微调识别图片）
-2. OCR 只有 ~80% 准确率 → Correct Tool（人工修改，确认后才进统计）
+2. OCR 需要人工核对 → Correct Tool（修改与确认分离，确认后才进统计）
 3. 多图全喂 DeepSeek 费 token → **检索/统计直接 SQL 直查**（不再全表读入内存），只把聚合结果喂 LLM
 4. 统计要直观 → Plot Tool（画柱状/饼图）
-5. 统计要交付 → Report Tool（生成 Word 报告）
+5. 统计要交付 → Word、Excel、PPT 使用可追溯的同一销售快照
 
 ## 快速开始
 
@@ -37,10 +38,10 @@ SQLite (data/agent.db): documents(图) + ocr_rows(识别行, status=pending/conf
 # 1. 依赖(清华源; requirements.txt 已含全部)
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
-# 2. .env(已配好): OCR_BASE_URL=http://127.0.0.1:9052/v1  OCR_MODEL=internvl3
-#    DEEPSEEK_API_KEY=sk-xxx
+# 2. 从 .env.example 创建本机 .env；配置 DeepSeek 和 OCR 服务
+#    Qwen OCR 选择 OCR_PROVIDER=qwen；API key 不提交 Git
 
-# 3. 启动 InternVL 9052(隧道), 然后:
+# 3. 启动本机工作台（Word/PPT 预览需要本机 Microsoft Office）:
 python run_web.py        # http://127.0.0.1:8100
 ```
 
@@ -82,7 +83,7 @@ charts/                图表输出(gitignore)
 ## 检索为何用 SQL 直查
 
 销售数据是**结构化表格**（非文档语义），无需向量检索。直接 `SELECT ... WHERE item LIKE ? / substr(date,1,4)=? GROUP BY ... SUM(...)`，
-结果 100% 精确、只把聚合后的几行喂 LLM —— **省 token、速度快**。（早期版本曾全表读入内存再 Python 过滤，已废弃。）
+聚合由 SQL 计算，准确性仍取决于 OCR、人工确认和字段规范。只把受限的聚合结果送入 LLM，减少上下文输入；测量结果见下方评估记录。（早期版本曾全表读入内存再 Python 过滤，已废弃。）
 
 ## 测试
 
@@ -107,6 +108,18 @@ SQL 工具结果已使用程序生成结构化摘要，明细和分组最多展�
 
 ## 环境依赖
 
-- **InternVL 9052**：识别单据（OpenAI 兼容端点，单槽串行，重启可恢复）
+- **OCR**：可选 InternVL（原服务离线时需恢复）或 Qwen OCR；配置见 `.env.example`。
 - **DeepSeek API**：Agent 决策与回答（`.env` 配 key）
 - Python 3.11+；依赖见 `requirements.txt`（安装用清华源 `-i https://pypi.tuna.tsinghua.edu.cn/simple`）
+
+## 交互与销售办公升级
+
+深色工作台提供左侧历史搜索/重命名、中央聊天与八字段核对表、右侧原图及文件预览。保存修改不等于确认；已确认行修改后会重新待确认。表格直连后端，版本冲突需刷新，整批保存失败不会部分写入。
+
+历史消息分页浏览，图片、核对卡片和新生成的文件卡片可恢复；模型仍只读取受限的最近上下文与结构化任务状态。长期偏好仅在明确要求时保存。应用为本机单用户工作区，不包含多用户鉴权。
+
+Word、Excel、PPT 覆盖销售明细、统计与汇报，同一请求可复用数据快照。Excel 完整导出，Word/PPT 明确标记图表展示范围。文件通过登记 ID 预览、下载；旧版只包含路径文本的消息没有文件卡片。
+
+Word/PPT 转 PDF 后由 PDFium 渲染页面，支持翻页和缩放；Excel 提供工作表与分页数据查看。Office 转换独立进程、串行执行、60 秒超时，失败后原文件仍可下载并重试。PPT 预览前需关闭已有 PowerPoint，避免连接或退出用户实例。超时只清理已记录且 PID、名称、创建时间匹配的任务 Office 进程；COM 在记录进程之前卡住的情况不做猜测性清理。
+
+升级验证与已知限制见 [交互与办公验证](docs/evals/product-upgrade-2026-10-03.md)。销售生成规范见 [项目业务规范](docs/sales-office-rules.md)。

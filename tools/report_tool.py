@@ -31,11 +31,15 @@ def generate_report(
     year: str = "",
     include_chart: bool = True,
     group_by: str = "item",
+    keyword: str = "",
+    snapshot_id: str = "",
 ) -> str:
     """把已确认销售数据生成一份 Word 统计报告(.docx)。
 
     Args:
         year: 可选年份过滤, 如 "2024" 或 "2024年"; 空=全部年份。
+        keyword: 与查询相同的公司/商品/源公司/文件名过滤关键词。
+        snapshot_id: 复用其他办公文件返回的快照ID；空则取最新数据。
         include_chart: 是否在报告中嵌入统计图(默认 true)。
         group_by: 报告中明细表的分组维度: item(商品)/desc(顾客公司)/date(发注日)。
     """
@@ -45,14 +49,19 @@ def generate_report(
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ---- 取数(SQL) ----
-    total_rows = crud.confirmed_count(year=year or None)
+    from services.sales_snapshot import capture
+    if group_by not in ('item','desc','date'):
+        return 'group_by 仅支持: item、desc、date'
+    try:
+        snapshot = capture(year, keyword, snapshot_id)
+    except (ValueError, LookupError, FileNotFoundError) as exc:
+        return '错误: '+str(exc)
+    year, keyword = snapshot['filters']['year'], snapshot['filters']['keyword']
+    total_rows = snapshot['summary']['total_rows']
     if total_rows == 0:
-        return "（没有符合条件的已确认数据，无法生成报告）"
-    by_item = crud.summarize_confirmed("item", year=year or None)
-    by_desc = crud.summarize_confirmed("desc", year=year or None)
-    by_date = crud.summarize_confirmed("date", year=year or None)
-    confirmed_docs = crud.confirmed_document_count(year=year or None)
+        return '（没有符合条件的已确认数据，无法生成报告）'
+    by_item, by_desc, by_date = [snapshot['groups'][key] for key in ('item','desc','date')]
+    confirmed_docs = snapshot['summary']['total_docs']
     artifact_id = uuid4().hex
     chart_warning = ''
 
@@ -71,6 +80,8 @@ def generate_report(
     r.font.size = Pt(12)
     r.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
 
+    if keyword:
+        doc.add_paragraph('过滤关键词：'+keyword)
     # 概述
     doc.add_heading("一、数据总览", level=1)
     overview = doc.add_table(rows=0, cols=2)
@@ -105,6 +116,9 @@ def generate_report(
             c[3].text = str(g["rows"])
             c[4].text = f"{g['total'] / total_sum * 100:.1f}%"
 
+        if len(groups)>15:
+            doc.add_paragraph(f'该维度共{len(groups)}组，表中展示前15组，省略{len(groups)-15}组；总览包含全部匹配记录。')
+
     _add_table("二、按商品统计", by_item, "item")
     _add_table("三、按顾客公司统计", by_desc, "desc")
     _add_table("四、按发注日统计", by_date, "date")
@@ -122,7 +136,7 @@ def generate_report(
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 
-            labels, values = _collect_data(group_by, year=year)
+            labels, values = _collect_data(group_by, filter_query=keyword, year=year, snapshot=snapshot)
             if labels:
                 fig, ax = plt.subplots(figsize=(8, 4.2))
                 ax.bar(labels, values, color="#4C78A8")
@@ -156,6 +170,6 @@ def generate_report(
     doc.save(fname)
     from db import artifacts
     from agent.runtime_guard import ToolOutcome
-    ident = artifacts.register(fname, 'docx')
-    return ToolOutcome(f"报告已生成: {fname}（共 {confirmed_docs} 张单据, {total_rows} 行记录）" + (f'。{chart_warning}' if chart_warning else ''),
+    ident = artifacts.register(fname, 'docx', snapshot)
+    return ToolOutcome(f"报告已生成: {fname}（共 {confirmed_docs} 张单据, {total_rows} 行记录）" + (f'。{chart_warning}' if chart_warning else '')+f'\nsnapshot_id={ident}；文件卡片提供预览与下载。',
                        cards=[{'type':'artifact','artifact_id':ident}])

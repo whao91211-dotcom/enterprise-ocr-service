@@ -33,8 +33,11 @@ def _setup_cjk_font() -> None:
     plt.rcParams["axes.unicode_minus"] = False
 
 
-def _collect_data(group_by: str, filter_query: str = "", year: str = "") -> tuple[list[str], list[float]]:
+def _collect_data(group_by: str, filter_query: str = "", year: str = "", snapshot: dict | None = None) -> tuple[list[str], list[float]]:
     """用 SQL 聚合取数(替代全表读入内存)。返回 (标签, 金额合计)。"""
+    if snapshot is not None:
+        groups = snapshot['groups'][group_by]
+        return [g['group'] for g in groups], [g['total'] for g in groups]
     groups = crud.summarize_confirmed(
         group_by=group_by, keyword=filter_query or None, year=year or None
     )

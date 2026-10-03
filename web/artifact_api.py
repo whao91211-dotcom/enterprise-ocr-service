@@ -1,6 +1,7 @@
 from pathlib import Path
+from contextlib import contextmanager
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse,Response
 from db import artifacts
 
 router = APIRouter()
@@ -42,6 +43,46 @@ def pdf(ident: str):
     if item['preview_status']!='ready' or not item['preview_path'] or not Path(item['preview_path']).is_file():
         raise HTTPException(409,'预览尚未准备完成')
     return FileResponse(item['preview_path'],media_type='application/pdf')
+
+
+@contextmanager
+def open_pdf(ident):
+    item=find(ident)
+    if item['preview_status']!='ready' or not item['preview_path'] or not Path(item['preview_path']).is_file():
+        raise HTTPException(409,'预览尚未准备完成')
+    import pypdfium2
+    from services.pdf_runtime import PDF_LOCK
+    with PDF_LOCK:
+        document=pypdfium2.PdfDocument(item['preview_path'])
+        try:
+            yield document
+        finally:
+            document.close()
+
+
+@router.get('/api/artifacts/{ident}/preview/pages')
+def pages(ident: str):
+    with open_pdf(ident) as document:
+        return {'pages':len(document)}
+
+
+@router.get('/api/artifacts/{ident}/preview/page/{page_number}')
+def page_image(ident: str,page_number: int,scale: float=Query(1.3,ge=.5,le=2)):
+    import io
+    with open_pdf(ident) as document:
+        if page_number<0 or page_number>=len(document):
+            raise HTTPException(404,'预览页不存在')
+        page=document[page_number]
+        try:
+            bitmap=page.render(scale=scale)
+            try:
+                buffer=io.BytesIO()
+                bitmap.to_pil().save(buffer,format='PNG')
+                return Response(buffer.getvalue(),media_type='image/png',headers={'Cache-Control':'private, max-age=3600'})
+            finally:
+                bitmap.close()
+        finally:
+            page.close()
 
 
 @router.get('/api/artifacts/{ident}/sheets')

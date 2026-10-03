@@ -99,12 +99,13 @@ def rename_session(session_id, title):
 def message_page(session_id, before_id=None, limit=50):
     conn = get_connection()
     try:
+        session = conn.execute('SELECT title FROM chat_sessions WHERE id=?',(session_id,)).fetchone()
         rows = conn.execute('SELECT * FROM chat_messages WHERE session_id=? AND (? IS NULL OR id<?) '
             'ORDER BY id DESC LIMIT ?', (session_id, before_id, before_id, limit+1)).fetchall()
         more = len(rows)>limit
         messages = [{**dict(row), 'meta': json.loads(row['meta_json'])} for row in reversed(rows[:limit])]
         for message in messages:
             message.pop('meta_json', None)
-        return {'messages': messages, 'has_more': more}
+        return {'messages': messages, 'has_more': more, 'title': session['title'] if session else ''}
     finally:
         conn.close()

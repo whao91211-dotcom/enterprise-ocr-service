@@ -11,6 +11,20 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
+def test_completed_card_survives_model_failure(chat_client,monkeypatch):
+    def fail(*args,**kwargs):
+        yield {'type':'ocr_review','doc_id':42}
+        raise RuntimeError('synthetic model failure')
+    monkeypatch.setattr(chat_client.agent_chat_module,'run_agent_events',fail)
+    response=chat_client.post('/api/agent/chat',json={'message':'核对合成单据'})
+    events=[json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
+    from db import chat_memory
+    messages=chat_memory.message_page(events[0]['session_id'])['messages']
+    assert messages[-1]['meta']['cards']==[{'type':'ocr_review','doc_id':42}]
+    assert messages[-1]['content']=='synthetic model failure'
+    assert events[0]['session_id'] not in chat_client.agent_chat_module._ACTIVE_SESSIONS
+
+
 @pytest.fixture
 def chat_client(monkeypatch, tmp_path):
     from db import database

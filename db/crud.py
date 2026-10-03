@@ -276,8 +276,8 @@ def summarize_confirmed(
         sql = (
             f"SELECT {col} AS gkey, "
             "COUNT(*) AS row_cnt, "
-            "SUM(CAST(REPLACE(REPLACE(r.amount,',',''),'¥','') AS REAL)) AS qty, "
-            "SUM(CAST(REPLACE(REPLACE(r.sum_,',',''),'¥','') AS REAL)) AS total "
+            "SUM(CAST(REPLACE(REPLACE(REPLACE(r.amount,',',''),'¥',''),'￥','') AS REAL)) AS qty, "
+            "SUM(CAST(REPLACE(REPLACE(REPLACE(r.sum_,',',''),'¥',''),'￥','') AS REAL)) AS total "
             f"FROM ocr_rows r JOIN documents d ON d.id = r.doc_id WHERE {where} "
             f"GROUP BY {col} ORDER BY total DESC"
         )

@@ -13,4 +13,10 @@ Ruling: 在用户当前专用 feat/agent-v2 分支内执行并保留三批提交
 
 Ruling: 先使用明确的文件生成工具与项目业务规范，不自动执行第三方 Skill 脚本，也不复制源码可见的办公 Skill。
 
-当前状态：测试先行，未实现。
+当前状态：三批功能已实现。前两批提交 2cc862b、f8c1434；第三批含统一快照、Excel/PPT、Office 所有权保护及最终验证。
+
+验证：106 项自动测试通过；真实合成 OCR 全流程 7/7；真实模型三格式路由任务通过；最终本机 Office probe 9/9，Word 2 页、PPT 5 页。证据与测量边界见 docs/evals/product-upgrade-2026-10-03.md。
+
+Ruling: 内嵌浏览器的原生 PDF 显示空白，改为本机 PDFium 页面图片预览，保留 PDF 下载接口并增加翻页/缩放；PDFium 调用在进程内串行。
+
+Ruling: PowerPoint 的 COM 服务可能共用用户实例，已有 PowerPoint 时安全拒绝预览；记录独占新增进程身份后才打开文件，超时只清理相匹配的任务 Office 进程。

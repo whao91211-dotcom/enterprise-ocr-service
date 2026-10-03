@@ -108,13 +108,17 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
             acquired = session_id not in _ACTIVE_SESSIONS
             if acquired:
                 _ACTIVE_SESSIONS.add(session_id)
+        saved = False
+        started = False
+        cards = []
+        user_meta = {}
+        incomplete_answer = '处理已中断；已完成的单据和文件保留，可继续本对话。'
         try:
             yield f"data: {json.dumps({'type': 'session', 'session_id': session_id, 'profile_id': profile_id})}\n\n"
             if not acquired:
                 yield f"data: {json.dumps({'type': 'error', 'code': 'session_busy', 'message': '本会话正在处理上一条请求，请等待完成后重试。'}, ensure_ascii=False)}\n\n"
                 return
-            cards = []
-            user_meta = {}
+            started = True
             if image_path:
                 from db.database import get_connection
                 attachment_id = uuid.uuid4().hex
@@ -130,6 +134,7 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
             if command is not None:
                 answer = _handle_memory_command(profile_id, *command)
                 chat_memory.save_turn(session_id, user_content, answer)
+                saved = True
                 yield f"data: {json.dumps({'type': 'answer', 'answer': answer}, ensure_ascii=False)}\n\n"
                 return
             preferences = preference_memory.list_preferences(profile_id)
@@ -141,15 +146,22 @@ def _event_response(message: str, history: list[dict], image_path: str | None,
                     cards.append(ev)
                 if ev.get("type") == "answer":
                     chat_memory.save_turn(session_id, user_content, ev["answer"], user_meta, {'cards':cards})
+                    saved = True
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
         except RuntimeError as e:
+            incomplete_answer = str(e)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
         except Exception as e:
+            incomplete_answer = f'处理失败: {e}'
             yield f"data: {json.dumps({'type': 'error', 'message': f'处理失败: {e}'}, ensure_ascii=False)}\n\n"
         finally:
             if acquired:
-                with _SESSION_LOCK:
-                    _ACTIVE_SESSIONS.discard(session_id)
+                try:
+                    if started and not saved and (cards or user_meta):
+                        chat_memory.save_turn(session_id, user_content, incomplete_answer, user_meta, {'cards':cards})
+                finally:
+                    with _SESSION_LOCK:
+                        _ACTIVE_SESSIONS.discard(session_id)
 
     return _ClosingStreamResponse(gen(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache"})

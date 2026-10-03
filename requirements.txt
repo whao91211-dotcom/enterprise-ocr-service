@@ -16,3 +16,4 @@ python-pptx>=1.0
 openpyxl>=3.1
 pywin32>=306; sys_platform == 'win32'
 pypdfium2>=4.30
+psutil>=5.9

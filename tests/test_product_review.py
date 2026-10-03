@@ -17,6 +17,55 @@ def test_missing_row_update_does_not_report_success(store):
     assert crud.update_row(99999, {'sum': '150'}) is False
 
 
+def test_chat_edit_reports_verified_before_and_after(store):
+    from tools.correct_tool import correct_update_row
+    crud,doc=store
+    row=crud.rows_by_doc(doc)[0]
+    result=correct_update_row.invoke({'row_id':row['id'],'fields':'{"sum":"150"}'})
+    assert 'sum: 100 → 150' in result
+    assert result.cards==[{'type':'ocr_review','doc_id':doc}]
+    assert crud.rows_by_doc(doc)[0]['sum']=='150'
+
+
+def test_missing_row_in_batch_rolls_back_prior_changes(store):
+    from db import review
+    crud,doc=store
+    current=review.get_review(doc)
+    with pytest.raises(LookupError):
+        review.save_edits(doc,current['version'],[{'id':current['rows'][0]['id'],'fields':{'sum':'150'}},
+                                                {'id':99999,'fields':{'sum':'200'}}])
+    assert crud.rows_by_doc(doc)[0]['sum']=='100'
+    assert review.get_review(doc)['version']==current['version']
+
+
+def test_full_width_currency_matches_chat_and_office(store):
+    from services.sales_snapshot import capture
+    crud,doc=store
+    assert crud.update_row(crud.rows_by_doc(doc)[0]['id'],{'sum':'￥1,200.00'})
+    crud.confirm_doc(doc)
+    assert sum(r['total'] for r in crud.summarize_confirmed())==capture()['summary']['total_sum']==1440
+
+
+def test_migration_preserves_legacy_records_and_is_idempotent(tmp_path,monkeypatch):
+    from db import database,chat_memory
+    from db.schema import SQL_SCHEMA
+    monkeypatch.setattr(database,'_DATA_DIR',tmp_path)
+    monkeypatch.setattr(database,'DB_PATH',tmp_path/'legacy.db')
+    conn=database.get_connection()
+    with conn:
+        conn.executescript(SQL_SCHEMA)
+        conn.execute("INSERT INTO documents(file_name) VALUES('legacy.png')")
+        conn.execute("INSERT INTO chat_sessions(id) VALUES('legacy')")
+        conn.execute("INSERT INTO chat_messages(session_id,role,content) VALUES('legacy','user','保留旧消息')")
+    conn.close()
+    database.init_db();database.init_db()
+    assert chat_memory.message_page('legacy')['messages'][0]['content']=='保留旧消息'
+    assert chat_memory.message_page('legacy')['messages'][0]['meta']=={}
+    conn=database.get_connection()
+    assert dict(conn.execute('SELECT file_name,version FROM documents').fetchone())=={'file_name':'legacy.png','version':0}
+    conn.close()
+
+
 def test_edit_confirmed_row_requires_new_review(store):
     crud, doc = store
     crud.confirm_doc(doc)

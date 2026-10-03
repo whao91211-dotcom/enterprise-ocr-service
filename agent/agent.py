@@ -34,6 +34,7 @@ from tools.ocr_tool import ocr_recognize
 from tools.plot_tool import plot_chart
 from tools.rag_tool import rag_query, rag_summarize
 from tools.report_tool import generate_report
+from tools.office_tool import generate_excel, generate_presentation
 
 SYSTEM_PROMPT = """你是一个企业文档处理智能体。你可以:
 
@@ -84,14 +85,18 @@ EVENTS_SYSTEM_PROMPT = """你是一个企业文档处理智能体。根据用户
    若提到具体商品/公司 → rag_query(query=词) 查明细 或 rag_summarize(keyword=词)。
 3. 用户要"画图/图表/柱状/饼图/可视化" → 调用 plot_chart(group_by, chart_type[, year])。
    绘图数据来自 SQL 聚合; 提到年份时传 year, 提到商品/公司时传 filter_query。
-4. 用户要"报告/汇报/生成文档/统计报告/Word" → 调用 generate_report([year])，
-   生成销售数据统计 Word 报告(.docx), 告知文件路径。
+4. 用户要 Word 报告 → generate_report；Excel 表格 → generate_excel；PPT/幻灯片汇报 → generate_presentation。
+   三种工具都要沿用用户的年份、关键词和分组条件。多格式同一份数据时，先生成一种，
+   再把该工具返回的 snapshot_id 传给其他格式，确保快照一致；用户明确要最新数据时不复用旧快照。
+   文件成功后提示使用聊天中的文件卡片预览或下载，不展示本地绝对路径或内部 snapshot_id。
 5. 用户要"确认/修改/核对"识别数据 → correct_list_docs / correct_show_rows /
    correct_update_row / correct_confirm。
 6. 统计类问题默认用 rag_summarize(group_by='item') 或按需(desc/date)。
 
 规则:
 - 只统计已确认(confirmed)数据; 未确认时说明"待确认草稿"。
+- OCR成功后必须询问用户是否需要修正，提示聊天核对卡片。不要在识别后自动确认，只有用户明确核对无误要求确认才执行。
+- 修改必须调用工具并根据实际保存结果展示变更；修改后的行待重新确认。
 - 不要编造; 用中文简洁结构化回答, 给出统计结论与数据来源。
 - 无匹配也是查询结论，必须来自对应条件的查询工具结果；成功条件快照不包含数据。
   用户改变年份或关键词时必须重新查询，不能推断无匹配。文件完成声明必须有本轮生成工具的成功结果。
@@ -172,6 +177,8 @@ _TOOLS = [
     rag_summarize,
     plot_chart,
     generate_report,
+    generate_excel,
+    generate_presentation,
 ]
 _TOOL_BY_NAME = {t.name: t for t in _TOOLS}
 
@@ -273,6 +280,10 @@ def run_agent_events(
                 claimed_artifacts.add('generate_report')
             if re.search(r'(?:图表|统计图|柱状图|饼图)[^\n。]{0,35}(?:已生成|生成成功)|(?:已生成|生成成功)[^\n。]{0,35}(?:图表|统计图|柱状图|饼图)', str(content)):
                 claimed_artifacts.add('plot_chart')
+            if re.search(r'(?:Excel|工作簿|xlsx)[^\n。]{0,35}(?:已生成|生成成功)|(?:已生成|生成成功)[^\n。]{0,35}(?:Excel|工作簿|xlsx)', str(content), re.I):
+                claimed_artifacts.add('generate_excel')
+            if re.search(r'(?:PPT|幻灯片|演示文稿)[^\n。]{0,35}(?:已生成|生成成功)|(?:已生成|生成成功)[^\n。]{0,35}(?:PPT|幻灯片|演示文稿)', str(content), re.I):
+                claimed_artifacts.add('generate_presentation')
             if claimed_artifacts - artifact_proofs:
                 if corrected_file_claim:
                     yield {'type': 'answer', 'answer': '文件未生成：本轮没有可验证的生成工具成功结果，本次任务已停止。'}
@@ -315,7 +326,8 @@ def run_agent_events(
             messages.append(ToolMessage(content=result, tool_call_id=tc.get("id", "")))
             if tc.get('name') == 'correct_update_row' and result.startswith('✅ 行 #') and not getattr(result, 'failed', False):
                 updated_row_proof = True
-            prefix = {'generate_report': '报告已生成:', 'plot_chart': '图表已生成:'}.get(tc.get('name'))
+            prefix = {'generate_report': '报告已生成:', 'plot_chart': '图表已生成:',
+                      'generate_excel':'Excel已生成:', 'generate_presentation':'PPT已生成:'}.get(tc.get('name'))
             if prefix and result.startswith(prefix) and not getattr(result, 'failed', False):
                 artifact_path = result[len(prefix):].split('（共', 1)[0].split(' (共', 1)[0].split('\n', 1)[0].strip()
                 if Path(artifact_path).is_file():
@@ -326,7 +338,7 @@ def run_agent_events(
             if getattr(result, 'failed', False):
                 if tc.get('name') in {'ocr_recognize_chat', 'ocr_recognize',
                                       'correct_update_row', 'correct_confirm',
-                                      'plot_chart', 'generate_report'}:
+                                      'plot_chart', 'generate_report', 'generate_excel', 'generate_presentation'}:
                     yield {"type": "answer", "answer": f"操作未能确认成功：{result}。本次任务已停止，请先核对状态，避免重复写入。"}
                     return
                 signature = (tc.get('name'), json.dumps(tc.get('args', {}), sort_keys=True, ensure_ascii=False))
