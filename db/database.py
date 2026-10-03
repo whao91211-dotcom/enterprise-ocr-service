@@ -37,6 +37,8 @@ def init_db() -> None:
             columns = {row['name'] for row in conn.execute(f'PRAGMA table_info({table})')}
             if column not in columns:
                 conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+        from db.chat_memory import backfill_titles
+        backfill_titles(conn)
         conn.commit()
     finally:
         conn.close()

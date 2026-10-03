@@ -4,8 +4,30 @@ from __future__ import annotations
 
 import uuid
 import json
+import re
 
 from db.database import get_connection
+
+
+def _question_title(content):
+    content = ' '.join(content.split())
+    image = re.fullmatch(r'\[已上传图片:\s*(.+)\]', content)
+    if image:
+        content = '识别单据 · ' + image.group(1)
+    return content[:36]
+
+
+def backfill_titles(conn, session_id=None):
+    """Fill only missing titles from the first question; preserve manual names and recency."""
+    sessions = conn.execute("SELECT id,created_at FROM chat_sessions WHERE trim(title)='' "
+        "AND (? IS NULL OR id=?) AND EXISTS(SELECT 1 FROM chat_messages WHERE session_id=chat_sessions.id)",
+        (session_id, session_id)).fetchall()
+    for session in sessions:
+        messages = conn.execute("SELECT content FROM chat_messages WHERE session_id=? "
+            "ORDER BY CASE WHEN role='user' THEN 0 ELSE 1 END,id", (session['id'],))
+        title = next((title for message in messages if (title := _question_title(message['content']))), '')
+        conn.execute("UPDATE chat_sessions SET title=? WHERE id=? AND trim(title)=''",
+                     (title or '对话 · '+session['created_at'][:16], session['id']))
 
 
 def resolve_session(requested_id: str | None) -> tuple[str, bool]:
@@ -61,10 +83,10 @@ def save_turn(session_id: str, user_content: str, assistant_content: str,
                  (session_id, "assistant", assistant_content, json.dumps(assistant_meta or {}, ensure_ascii=False))],
             )
             conn.execute(
-                "UPDATE chat_sessions SET updated_at = datetime('now','localtime'), "
-                "title=CASE WHEN title='' THEN ? ELSE title END WHERE id = ?",
-                (user_content.strip()[:36] or '新对话', session_id),
+                "UPDATE chat_sessions SET updated_at = datetime('now','localtime') WHERE id = ?",
+                (session_id,),
             )
+            backfill_titles(conn, session_id)
     finally:
         conn.close()
 
