@@ -154,4 +154,8 @@ def generate_report(
     safe_year = re.sub(r"[^\w]", "", year) if year else "all"
     fname = REPORTS_DIR / f"销售报告_{safe_year}_{artifact_id}.docx"
     doc.save(fname)
-    return f"报告已生成: {fname}（共 {confirmed_docs} 张单据, {total_rows} 行记录）" + (f'。{chart_warning}' if chart_warning else '')
+    from db import artifacts
+    from agent.runtime_guard import ToolOutcome
+    ident = artifacts.register(fname, 'docx')
+    return ToolOutcome(f"报告已生成: {fname}（共 {confirmed_docs} 张单据, {total_rows} 行记录）" + (f'。{chart_warning}' if chart_warning else ''),
+                       cards=[{'type':'artifact','artifact_id':ident}])

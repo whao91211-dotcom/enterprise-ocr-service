@@ -41,6 +41,8 @@ app.include_router(agent_chat.router)
 from web.product import router as product_router
 from fastapi.staticfiles import StaticFiles
 app.include_router(product_router)
+from web.artifact_api import router as artifact_router
+app.include_router(artifact_router)
 app.mount('/static', StaticFiles(directory=str(ROOT / 'web' / 'static')), name='static')
 
 

@@ -16,6 +16,17 @@
 SQL_SCHEMA = """
 PRAGMA journal_mode=WAL;
 
+CREATE TABLE IF NOT EXISTS generated_artifacts (
+    id TEXT PRIMARY KEY,
+    path TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL DEFAULT '{}',
+    preview_status TEXT NOT NULL DEFAULT 'pending',
+    preview_error TEXT NOT NULL DEFAULT '',
+    preview_path TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);
+
 CREATE TABLE IF NOT EXISTS chat_attachments (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL REFERENCES chat_sessions(id),

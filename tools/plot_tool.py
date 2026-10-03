@@ -86,4 +86,7 @@ def plot_chart(group_by: str = "item", chart_type: str = "bar",
         fig.savefig(out, dpi=110)
     finally:
         plt.close(fig)
-    return f"图表已生成: {out} (共 {len(labels)} 类)"
+    from db import artifacts
+    from agent.runtime_guard import ToolOutcome
+    ident = artifacts.register(out, 'png')
+    return ToolOutcome(f"图表已生成: {out} (共 {len(labels)} 类)", cards=[{'type':'artifact','artifact_id':ident}])
