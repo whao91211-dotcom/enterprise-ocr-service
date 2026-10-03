@@ -3,7 +3,24 @@
 基于 LangChain Agent（DeepSeek LLM）的企业文档处理智能体，使用 ReAct 迭代工具调用，支持销售单据核对和办公文件交付。
 销售单据识别（InternVL 或 Qwen OCR）→ 聊天内核对修改 → 明确确认 → SQL 统计 → Word / Excel / PPT。
 
-> 当前分支：`feat/agent-v2`（默认分支）。旧版（双 FastAPI 服务）保留在 `master`。
+> 正式版本：`main`（默认分支）。开发分支 `feat/agent-v2` 和旧版 `master` 保留供追溯。
+
+## 工作台与主要能力
+
+![企业 Agent 三栏工作台：历史对话、单据核对和办公文件预览](docs/images/workspace.jpg)
+
+*截图使用合成销售数据，不包含真实业务单据。*
+
+| 能力 | 当前实现 |
+|---|---|
+| OCR 与人工核对 | InternVL / Qwen OCR；聊天内表格和自然语言修改；明确确认后才进入统计 |
+| 会话与记忆 | 历史搜索、按初始提问命名、继续对话；SQLite 保存会话、任务状态和用户明确要求保存的偏好 |
+| 任务执行与可靠性 | LangChain ReAct 工具调用；结构化上下文、重复失败检测、调用预算和超时保护 |
+| 销售办公交付 | 同一数据快照生成 Word、Excel、PPT；原图、工作表和文档页面预览及下载 |
+
+当前覆盖本机单用户的销售单据、统计分析与汇报流程。Word/PPT 页面预览需要 Windows 本机 Microsoft Office；Excel 预览用于查看工作表数据。
+
+最近验证的应用版本通过 **110 项自动测试**，较升级前的 84 项增加 26 项用例；这是回归覆盖数量，不代表业务准确率。合成单据的真实 OCR/模型单次完整流程 **7/7 通过**。数据、测量范围和限制见 [升级验证记录](docs/evals/product-upgrade-2026-10-03.md)。
 
 ## 架构
 
@@ -26,7 +43,7 @@ SQLite (data/agent.db): documents(图) + ocr_rows(识别行, status=pending/conf
 ```
 
 **工具职责**：
-1. DeepSeek 是"盲"的 → OCR Tool（InternVL 微调识别图片）
+1. DeepSeek 接收文字和工具结果 → OCR Tool（InternVL / Qwen OCR 识别图片）
 2. OCR 需要人工核对 → Correct Tool（修改与确认分离，确认后才进统计）
 3. 多图全喂 DeepSeek 费 token → **检索/统计直接 SQL 直查**（不再全表读入内存），只把聚合结果喂 LLM
 4. 统计要直观 → Plot Tool（画柱状/饼图）
@@ -50,28 +67,36 @@ python run_web.py        # http://127.0.0.1:8100
 - 说"确认" → 人工确认（进入统计口径）
 - 问"2022年销售额如何" → Agent 调 `rag_summarize(year=2022)` 精确返回
 - 说"画个柱状图" → Agent 调 `plot_chart`
-- 说"生成一份2022年统计报告" → Agent 生成 Word 报告到 `reports/`
+- 说"生成一份2022年统计报告" → Agent 生成 Word 报告并展示文件卡片
+- 说"按同一查询范围生成 Excel 明细和 PPT 汇报" → 生成办公文件，在右侧预览并下载
 
 ## 目录
 
 ```
-config.py              .env 配置(OCR 9052 / DeepSeek)
+config.py              .env 配置(InternVL / Qwen OCR / DeepSeek)
 db/                    SQLite 数据层
   schema.py            documents(图) + ocr_rows(识别行) 两级表
   crud.py              CRUD + SQL 直查(search_confirmed / summarize_confirmed)
+  chat_memory.py       会话历史与标题
+  preference_memory.py 用户明确要求保存的长期偏好
+  task_state.py        结构化查询状态
+  review.py / artifacts.py  核对事务与文件登记
 tools/                 可插拔工具(每个独立)
-  ocr_client.py        InternVL 客户端(cols8 中英语义 prompt)
+  ocr_client.py        InternVL / Qwen OCR 客户端与八字段规范
   ocr_tool.py          Tool1 识别
   correct_tool.py      Tool2 人工核对(4 子工具)
   rag_tool.py          Tool3/4 检索统计(真 SQL)
   plot_tool.py         Tool5 画图
   report_tool.py       Tool6 Word 报表
+  office_tool.py       Excel 明细与 PPT 汇报
+services/              共用销售快照与独立 Office 预览转换
 agent/
   llm.py               ChatDeepSeek
-  agent.py             手动 tool-calling 循环 + 6 组工具 + 流式事件
+  agent.py             ReAct 工具调用循环、上下文与异常保护、流式事件
 web/
   agent_chat.py        SSE 流式端点 /api/agent/chat(支持图片)
-  agentchat.html       深色工业风聊天界面
+  agentchat.html       深色三栏工作台
+  static/              聊天、历史、核对和预览的 JavaScript / CSS
   main.py              入口 + 其它 /api/*(correct/docs/chart)
 run_web.py / start_web.py  启动
 requirements.txt       依赖清单
